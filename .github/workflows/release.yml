@@ -1,0 +1,84 @@
+name: Signed release candidate
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Existing version tag, without v (for example 1.0.0)'
+        required: true
+      build_number:
+        description: 'Monotonically increasing integer'
+        required: true
+permissions:
+  contents: read
+jobs:
+  release:
+    environment: release
+    runs-on: macos-26
+    env:
+      RELEASE_VERSION: ${{ inputs.version }}
+      BUILD_NUMBER: ${{ inputs.build_number }}
+      UDARA_BUNDLE_ID: ${{ vars.UDARA_BUNDLE_ID }}
+      APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
+      SIGNING_IDENTITY: ${{ vars.SIGNING_IDENTITY }}
+      NOTARY_PROFILE: udara-ci
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v${{ inputs.version }}
+          fetch-depth: 0
+      - name: Select pinned Xcode
+        run: |
+          sudo xcode-select -s /Applications/Xcode_27.0.app/Contents/Developer
+          ./scripts/check-toolchain.sh
+      - name: Import signing and notarization credentials
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.CERTIFICATE_PASSWORD }}
+          NOTARY_KEY_BASE64: ${{ secrets.NOTARY_KEY_BASE64 }}
+          NOTARY_KEY_ID: ${{ secrets.NOTARY_KEY_ID }}
+          NOTARY_ISSUER_ID: ${{ secrets.NOTARY_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+          umask 077
+          keychain="$RUNNER_TEMP/udara-signing.keychain-db"
+          password="$(openssl rand -hex 32)"
+          echo "::add-mask::$password"
+          security list-keychains -d user > "$RUNNER_TEMP/original-keychains.txt"
+          printf '%s' "$CERTIFICATE_BASE64" | base64 --decode > "$RUNNER_TEMP/certificate.p12"
+          printf '%s' "$NOTARY_KEY_BASE64" | base64 --decode > "$RUNNER_TEMP/notary.p8"
+          security create-keychain -p "$password" "$keychain"
+          security set-keychain-settings -lut 21600 "$keychain"
+          security unlock-keychain -p "$password" "$keychain"
+          security import "$RUNNER_TEMP/certificate.p12" -P "$CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$keychain"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -k "$password" "$keychain" >/dev/null
+          security list-keychains -d user -s "$keychain"
+          xcrun notarytool store-credentials "$NOTARY_PROFILE" --key "$RUNNER_TEMP/notary.p8" --key-id "$NOTARY_KEY_ID" --issuer "$NOTARY_ISSUER_ID" --keychain "$keychain"
+          # notarytool's default profile lookup uses the default keychain.
+          security default-keychain -d user > "$RUNNER_TEMP/original-default-keychain.txt"
+          security default-keychain -d user -s "$keychain"
+      - name: Build, notarize, and verify
+        run: ./scripts/release.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: signed-release-candidate
+          path: |
+            build/releases/*/*.dmg
+            build/releases/*/SHA256SUMS
+            build/releases/*/*notary-log.json
+          if-no-files-found: error
+      - name: Remove signing material
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import os, pathlib, shlex, subprocess
+          root = pathlib.Path(os.environ['RUNNER_TEMP'])
+          for filename, arguments in [('original-keychains.txt', ['list-keychains']), ('original-default-keychain.txt', ['default-keychain'])]:
+              file = root / filename
+              if file.exists():
+                  values = shlex.split(file.read_text())
+                  if values:
+                      subprocess.run(['security', *arguments, '-d', 'user', '-s', *values], check=False)
+          subprocess.run(['security', 'delete-keychain', str(root / 'udara-signing.keychain-db')], check=False)
+          for filename in ['certificate.p12', 'notary.p8']:
+              (root / filename).unlink(missing_ok=True)
+          PY

@@ -1,0 +1,15 @@
+.build/
+build/
+DerivedData/
+.frg/
+.DS_Store
+*.xcuserstate
+xcuserdata/
+Config/Release.local.xcconfig
+*.p12
+*.p8
+*.keychain-db
+.env
+
+__pycache__/
+*.pyc
