@@ -45,18 +45,19 @@ struct OpenMeteoProvider: CitySearchProvider, AirQualityProvider {
     }
     func forecast(for city: SavedCity) async throws -> CityForecast {
         let data = try await request(host: "air-quality-api.open-meteo.com", path: "/v1/air-quality", items: [
-            "latitude": String(city.latitude), "longitude": String(city.longitude), "hourly": "us_aqi",
+            "latitude": String(city.latitude), "longitude": String(city.longitude), "hourly": "us_aqi_pm2_5,pm2_5",
             "forecast_days": "3", "timezone": "GMT", "timeformat": "unixtime"
         ])
         return try Self.decodeForecast(data, fetchedAt: clock.now)
     }
     static func decodeForecast(_ data: Data, fetchedAt: Date) throws -> CityForecast {
         struct Response: Decodable {
-            struct Hourly: Decodable { let time: [Double]; let us_aqi: [Double?] }
+            struct Hourly: Decodable { let time: [Double]; let us_aqi_pm2_5: [Double?]; let pm2_5: [Double?]? }
             let hourly: Hourly
         }
         let hourly = try JSONDecoder().decode(Response.self, from: data).hourly
-        guard hourly.time.count == hourly.us_aqi.count, !hourly.time.isEmpty,
+        guard hourly.time.count == hourly.us_aqi_pm2_5.count, !hourly.time.isEmpty,
+              hourly.pm2_5 == nil || hourly.pm2_5?.count == hourly.time.count,
               hourly.time.allSatisfy({ $0.isFinite && $0.truncatingRemainder(dividingBy: 3600) == 0 }),
               zip(hourly.time, hourly.time.dropFirst()).allSatisfy({ $1 - $0 == 3600 })
         else { throw ProviderError.invalidResponse }
@@ -65,8 +66,10 @@ struct OpenMeteoProvider: CitySearchProvider, AirQualityProvider {
         guard hourly.time.first! <= currentHour, hourly.time.last! >= currentHour + 2 * 3600 else {
             throw ProviderError.invalidResponse
         }
-        return CityForecast(fetchedAt: fetchedAt, samples: zip(hourly.time, hourly.us_aqi).map {
-            HourlyAQISample(time: Date(timeIntervalSince1970: $0), value: $1)
+        return CityForecast(fetchedAt: fetchedAt, samples: hourly.time.indices.map { index in
+            let concentration = hourly.pm2_5?[index]
+            let validConcentration = concentration.flatMap { $0.isFinite && $0 >= 0 ? $0 : nil }
+            return HourlyAQISample(time: Date(timeIntervalSince1970: hourly.time[index]), value: hourly.us_aqi_pm2_5[index], pm25Concentration: validConcentration)
         })
     }
     func search(_ query: String) async throws -> [SavedCity] {

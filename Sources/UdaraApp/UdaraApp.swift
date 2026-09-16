@@ -30,7 +30,7 @@ import SwiftUI
         } label: {
             Image(nsImage: MenuBarGlyph.image(reading: store.highest, style: store.menuBarIconStyle))
                 .accessibilityIdentifier("udaraMenuBar")
-                .accessibilityLabel(store.highest.map { "Udara, estimated US AQI \($0.value), \($0.category.title)" } ?? "Udara, AQI unavailable")
+                .accessibilityLabel(store.highest.map { "Udara, estimated PM2.5 AQI \($0.value), \($0.category.title)" } ?? "Udara, AQI unavailable")
         }.menuBarExtraStyle(.window)
     }
 }

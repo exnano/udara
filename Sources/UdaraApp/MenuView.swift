@@ -14,7 +14,7 @@ struct MenuView: View {
                     Image(systemName: "wind").font(.title2).foregroundStyle(.teal)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Udara").font(.title3.bold())
-                        Text("Estimated US AQI").font(.caption).foregroundStyle(.secondary)
+                        Text("Estimated PM2.5 AQI").font(.caption).foregroundStyle(.secondary)
                     }
                     Spacer()
                     if page != .cities {
@@ -103,14 +103,14 @@ struct MenuView: View {
                             if row.id != store.rows.last?.id { Divider().padding(.horizontal, 16) }
                         }
                     }
-                }.frame(height: min(CGFloat(store.rows.count) * 142, store.currentLocationRow == nil ? 360 : 320))
+                }.frame(height: min(CGFloat(store.rows.count) * 164, store.currentLocationRow == nil ? 360 : 320))
             }
             if let message = store.startupWarning ?? store.errorMessage {
                 Text(message).font(.caption).foregroundStyle(.red).padding(12).textSelection(.enabled)
             }
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(store.isRefreshing ? "Checking forecasts…" : "Hourly estimates · hourly updates")
+                    Text(store.isRefreshing ? "Checking forecasts…" : "PM2.5 estimates · hourly updates")
                     if let next = store.nextDownload {
                         Text("Next check \(relativeDate(next, to: store.now))")
                     }
@@ -139,26 +139,42 @@ struct CityRowView: View {
                 }
                 Spacer(minLength: 4)
                 AQIBadge(reading: status.reading)
-                if removable {
-                Menu {
-                    Button("Remove city", role: .destructive, action: remove)
-                } label: { Image(systemName: "ellipsis") }
-                    .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().frame(width: 18)
-                    .accessibilityLabel("Actions for \(status.city.name)")
-                }
             }
             Text(status.reading?.category.title ?? "No estimate for this hour")
                 .font(.caption.weight(.medium))
-            VStack(alignment: .leading, spacing: 2) {
-                if status.reading != nil {
-                    Text("Forecast for \(hourLabel) · \(timezoneLabel)")
+            HStack(alignment: .bottom, spacing: 8) {
+                VStack(alignment: .leading, spacing: 2) {
+                    if let concentration = status.forecast?.sample(at: status.now)?.pm25Concentration {
+                        Text("PM2.5 \(concentration, format: .number.precision(.fractionLength(1))) µg/m³ · hourly estimate")
+                    }
+                    if status.reading != nil {
+                        Text("Forecast for \(hourLabel) · \(timezoneLabel)")
+                    }
+                    if let forecast = status.forecast {
+                        Text(forecast.fetchedAt > status.now ? "Download time is ahead of the system clock" : "Downloaded \(relativeDate(forecast.fetchedAt, to: status.now))")
+                    }
+                    if status.overdue { Text("Cached forecast · update overdue").foregroundStyle(.orange) }
+                    if let retry { Text(retry.message).foregroundStyle(.secondary) }
+                }.font(.caption2).foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if removable {
+                    Menu {
+                        Button("Remove city", role: .destructive, action: remove)
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 28, height: 28)
+                            .background(.quaternary, in: RoundedRectangle(cornerRadius: 8))
+                            .contentShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                    .menuStyle(.borderlessButton)
+                    .menuIndicator(.hidden)
+                    .fixedSize()
+                    .help("Actions for \(status.city.name)")
+                    .accessibilityLabel("Actions for \(status.city.name)")
                 }
-                if let forecast = status.forecast {
-                    Text(forecast.fetchedAt > status.now ? "Download time is ahead of the system clock" : "Downloaded \(relativeDate(forecast.fetchedAt, to: status.now))")
-                }
-                if status.overdue { Text("Cached forecast · update overdue").foregroundStyle(.orange) }
-                if let retry { Text(retry.message).foregroundStyle(.secondary) }
-            }.font(.caption2).foregroundStyle(.secondary)
+            }
         }.padding(16)
         .accessibilityElement(children: .contain)
     }

@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.4.0 (6) — 2026-09-16
+
+- Use the supplied Udara Icon Composer artwork as the application icon.
+
+- Allow Settings descriptions to wrap fully and scroll within the menu window.
+
+- Move each saved city’s action menu to the bottom-right, with a larger rounded control.
+
+- Focus on estimated PM2.5 US AQI for haze: city sorting, menu bar values and category icons all use PM2.5-specific AQI.
+- Show hourly PM2.5 concentration in µg/m³ separately from AQI, with the averaging distinction explained in Settings.
+- Invalidate legacy overall-AQI caches while preserving cities, location, icon preferences and server retry deadlines.
+
 ## 1.3.1 (5) — 2026-09-16
 
 - Fix release architecture validation by checking each universal slice individually.

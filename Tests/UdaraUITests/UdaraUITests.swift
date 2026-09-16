@@ -9,6 +9,7 @@ import XCTest
         app.activate()
         XCTAssertTrue(app.staticTexts["A little clarity, city by city"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["Current location"].exists)
+        XCTAssertTrue(app.staticTexts["Estimated PM2.5 AQI"].exists)
         XCTAssertTrue(app.buttons["Enable location"].exists)
         app.buttons["Add your first city"].click()
         let search = app.textFields["citySearch"]

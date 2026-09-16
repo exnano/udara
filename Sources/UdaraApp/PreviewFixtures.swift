@@ -10,11 +10,11 @@ import SwiftUI
             SavedCity(id: $0.offset, name: $0.element, region: "Region", country: "Country", latitude: 3.139, longitude: 101.6869, timezone: "Asia/Kuala_Lumpur")
         }
         var state = RepositorySnapshot(cities: cities, forecasts: Dictionary(uniqueKeysWithValues: cities.map {
-            ($0.id, CityForecast(fetchedAt: date.addingTimeInterval(overdue ? -7200 : -1800), samples: unavailable ? [] : [.init(time: date, value: values[$0.id])]))
+            ($0.id, CityForecast(fetchedAt: date.addingTimeInterval(overdue ? -7200 : -1800), samples: unavailable ? [] : [.init(time: date, value: values[$0.id], pm25Concentration: 12.3)]))
         }))
         if !empty {
             state.currentLocation = SavedCity(id: -1, name: "Petaling Jaya", region: "", country: "Detected location", latitude: 3.11, longitude: 101.61, timezone: "Asia/Kuala_Lumpur")
-            state.forecasts[-1] = CityForecast(fetchedAt: date.addingTimeInterval(-1800), samples: [.init(time: date, value: 48)])
+            state.forecasts[-1] = CityForecast(fetchedAt: date.addingTimeInterval(-1800), samples: [.init(time: date, value: 48, pm25Concentration: 8.5)])
         }
         let persistence = MemoryPersistence()
         try! persistence.save(state)

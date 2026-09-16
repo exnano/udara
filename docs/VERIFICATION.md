@@ -123,3 +123,31 @@ The complete local suite passed before publishing to `exnano/udara`: 33 core tes
 - `brew install --cask exnano/tap/udara` installed the public 1.3.1 app into `/Applications`. Installed version, strict signature, staple and Gatekeeper checks passed, and the app launched. Previous manually installed app retained in `build/releases/1.3.1/previous/Udara.app`; user data preserved.
 - GitHub-hosted CI currently fails at toolchain selection because its macOS runner lacks `/Applications/Xcode_27.0.app`. This release was built and tested locally; no hosted-CI pass is claimed.
 - Clean-machine browser/offline launch, macOS 26 and Intel runtime verification, and Homebrew cross-version upgrade/uninstall acceptance remain outstanding. The install here was on the development Mac.
+
+
+## PM2.5 focus — 1.4.0 (6), unreleased
+
+- Provider now requests `us_aqi_pm2_5,pm2_5`; all AQI readings, sorting and menu bar values use PM2.5-specific US AQI. The hourly concentration is displayed separately in µg/m³, with its different averaging period explained in Settings.
+- Forecast payloads carry a metric marker. Legacy missing/overall metric caches cannot supply a PM2.5 reading; migration drops incompatible payloads/schedules while preserving cities, location, icon settings and retry deadlines.
+- 37 Swift Testing tests passed in 11 suites (SwiftPM and native Xcode), 24 Python tooling tests passed, and all 3 UI workflows passed. Result: `build/PM25Tests.xcresult`.
+- Added coverage for legacy cache migration, preference/cooldown preservation, PM2.5-versus-overall decoding, missing/malformed concentrations, rejecting overall-only responses and persistence of the new metric marker.
+- Debug and universal Release builds passed; Release executable contains x86_64 and arm64. Build version verified as 1.4.0 (6).
+- The compiled production provider was exercised directly against Open-Meteo for Shah Alam at 2026-09-16T11:48:29Z: 72 samples, metric `us_aqi_pm2_5`, current AQI 185, hourly concentration 67.1 µg/m³. This confirms data selection, not monitoring-station accuracy.
+- Captured updated appearance/location-state fixtures and visually inspected the light render with the PM2.5 heading and concentration row.
+- No public release or Homebrew update was performed for this change, and the existing installed 1.3.1 app was not replaced. The separate local WAQI assessment files remain intact.
+
+### Saved-city action placement
+
+- Moved the action menu to the bottom-right of each saved-city row with a rounded 28-point control, preserving the accessible city-specific label and destructive removal action.
+- Debug build passed for 1.4.0 (6); `git diff --check` passed.
+- Fixture rendering was attempted twice; assertions reached screenshot capture, but Xcode failed with “Failed to create screenshot. Image creation failed.” Results: `build/RowActionsTests.xcresult` and `build/RowActionsRetryTests.xcresult`. Updated layout screenshots are not verified; existing preview images predate this placement change.
+
+### Settings text wrapping
+
+- Settings now uses a 480-point scroll viewport and gives explanatory text its full wrapped height, keeping the menu header and footer outside the scrolling content.
+- Debug build and both existing Settings navigation/icon UI workflows passed (2 tests, zero failures): `build/SettingsWrapTests.xcresult`. `git diff --check` passed. These checks verify compilation and interaction; a new screenshot inspection was not completed.
+
+### Icon Composer application icon
+
+- Added `Udara.icon` to the app resource build phase and set the primary app icon name to `Udara` for Debug and Release, replacing the legacy ICNS reference.
+- Debug and universal Release builds passed. Release Info.plist names `Udara` for both icon keys; compiled `Udara.icns` and `Assets.car` are present. Visually inspected the generated Debug icon PNG.

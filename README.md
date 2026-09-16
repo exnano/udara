@@ -8,7 +8,7 @@ Source repository: [exnano/udara](https://github.com/exnano/udara).
 
 - Menu bar AQI number with a saved choice of Udara or dynamic category icon.
 - Permanent current-location row with optional macOS location detection.
-- Saved cities sorted by descending estimated US AQI.
+- Saved cities sorted by descending estimated PM2.5 AQI.
 - Six quality categories with icons, colours, and text labels.
 - Keyless Open-Meteo/CAMS forecasts, downloaded hourly per city.
 - Current-hour display from a local forecast cache; explicit overdue/unavailable states.
@@ -30,6 +30,8 @@ swift test
 
 The native Xcode project is the source of truth; no generator or external Swift package dependencies are required. `Package.swift` provides an independent test harness for the same core sources. Its macOS 15 floor applies only to the test library, not the distributed app.
 
+The app icon source is `Udara.icon`, editable in Icon Composer. Both Xcode build configurations use the `Udara` app icon name and compile the artwork automatically; no manual ICNS export is needed.
+
 Open `Sources/UdaraApp/PreviewFixtures.swift` in Xcode and choose Editor → Canvas. Named `#Preview` entries use fixed-time in-memory fixtures and never contact a service or modify saved preferences. The Debug-only `--preview-host` option opens the full dropdown as an inspectable window. Add `--light`, `--dark`, or `--reduced-transparency` to inspect appearance and `--empty` for onboarding; search in this mode uses local sample results.
 
 ## Versioning
@@ -40,7 +42,7 @@ See the [versioning guide](docs/VERSIONING.md) for examples and release/tag inst
 
 ## Data and privacy
 
-Values are **estimated US AQI**, not IQAir readings or live station observations. Data comes from [Open-Meteo](https://open-meteo.com/en/docs/air-quality-api), using CAMS ENSEMBLE and CAMS global forecasts. Geocoding is supplied by Open-Meteo/GeoNames. AQI values are rounded to whole numbers for display and classification. Source data attribution and applicable licences: [Open-Meteo licence](https://open-meteo.com/en/licence), [CAMS](https://atmosphere.copernicus.eu/).
+Values are **estimated PM2.5 AQI on the US scale**, not IQAir readings or live station observations. Data comes from [Open-Meteo](https://open-meteo.com/en/docs/air-quality-api), using CAMS ENSEMBLE and CAMS global forecasts. Geocoding is supplied by Open-Meteo/GeoNames. The AQI uses `us_aqi_pm2_5`, based on a preceding 24-hour PM2.5 average. The separately displayed `pm2_5` concentration is an hourly model estimate in µg/m³. They use different averaging periods, so the hourly concentration should not be converted directly to reproduce the displayed AQI. AQI values are rounded to whole numbers for display and classification. Source data attribution and applicable licences: [Open-Meteo licence](https://open-meteo.com/en/licence), [CAMS](https://atmosphere.copernicus.eu/).
 
 The hosted free API is for **non-commercial use**. Reassess the service agreement before commercial use or large-scale distribution. Caching reduces requests; it does not confer unlimited service capacity.
 

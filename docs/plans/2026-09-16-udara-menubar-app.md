@@ -99,3 +99,13 @@ Reference: [Open-Meteo AQ](https://open-meteo.com/en/docs/air-quality-api), [geo
 - [x] Add Settings choices Udara icon (wind, default) and Dynamic AQI icon (category symbol).
 - [x] Persist the preference in the existing atomic snapshot; older snapshots default safely to the Udara icon.
 - [x] Keep preview preferences in memory and document the number's source in Settings.
+
+
+## PM2.5 focus — 1.4.0
+
+- [x] Replace overall `us_aqi` with `us_aqi_pm2_5` for every displayed/sorted AQI value, including current location and the menu bar.
+- [x] Request `pm2_5` concentration alongside AQI; display its hourly model estimate in µg/m³ without treating it as the AQI's 24-hour average.
+- [x] Label the interface Estimated PM2.5 AQI and explain the US scale/averaging in Settings.
+- [x] Add a metric marker to each cache payload. Missing/other markers cannot supply a reading; clear incompatible forecast schedules while retaining saved preferences and retry limits.
+- [x] Keep hourly downloads, existing category boundaries and the permanent current-location row.
+- [x] Retain the independent local WAQI assessment work; no WAQI migration or token bundling.

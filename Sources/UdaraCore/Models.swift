@@ -55,6 +55,7 @@ struct AQIReading: Equatable, Sendable {
 struct HourlyAQISample: Codable, Sendable {
     let time: Date
     let value: Double?
+    var pm25Concentration: Double? = nil
 }
 enum ForecastRefreshPolicy {
     static let interval: TimeInterval = 3600
@@ -64,9 +65,15 @@ enum ForecastRefreshPolicy {
 struct CityForecast: Codable, Sendable {
     let fetchedAt: Date
     let samples: [HourlyAQISample]
-    func reading(at date: Date) -> AQIReading? {
+    // Optional for decoding old caches; absent/other metrics must never be relabeled as PM2.5.
+    var metric: String? = "us_aqi_pm2_5"
+    func sample(at date: Date) -> HourlyAQISample? {
+        guard metric == "us_aqi_pm2_5" else { return nil }
         let hour = floor(date.timeIntervalSince1970 / 3600) * 3600
-        return samples.first { $0.time.timeIntervalSince1970 == hour }.flatMap { AQIReading($0.value) }
+        return samples.first { $0.time.timeIntervalSince1970 == hour }
+    }
+    func reading(at date: Date) -> AQIReading? {
+        sample(at: date).flatMap { AQIReading($0.value) }
     }
     func isOverdue(at date: Date) -> Bool {
         date < fetchedAt || date.timeIntervalSince(fetchedAt) >= ForecastRefreshPolicy.interval

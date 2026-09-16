@@ -18,6 +18,11 @@ actor ForecastRepository {
         self.provider = provider; self.searchProvider = searchProvider; self.persistence = persistence
         self.clock = clock; self.jitter = jitter
         state = try persistence.load() ?? RepositorySnapshot()
+        let incompatible = state.forecasts.filter { $0.value.metric != "us_aqi_pm2_5" }.map(\.key)
+        for id in incompatible {
+            state.forecasts[id] = nil
+            state.scheduled[id] = nil
+        }
         // Normalize legacy daily deadlines without clearing forecasts, cities or server cooldowns.
         for (id, forecast) in state.forecasts {
             let earliest = forecast.fetchedAt.addingTimeInterval(ForecastRefreshPolicy.interval)

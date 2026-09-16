@@ -75,6 +75,7 @@ struct ResilienceTests {
         #expect(query.contains(.init(name: "forecast_days", value: "3")))
         #expect(query.contains(.init(name: "timezone", value: "GMT")))
         #expect(!query.contains { $0.name == "apikey" })
+        #expect(query.contains(.init(name: "hourly", value: "us_aqi_pm2_5,pm2_5")))
     }
     @Test func httpDateRetryAfter() {
         let formatter = DateFormatter()
