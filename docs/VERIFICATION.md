@@ -107,3 +107,19 @@ Universal **1.2.0 (3)** was signed for `io.exnano.udara` with Developer ID team 
 ## GitHub source publication validation
 
 The complete local suite passed before publishing to `exnano/udara`: 33 core tests across 9 suites, 20 release-tooling tests and 3 XCTest UI workflows. Result bundle: `build/PublishTests.xcresult`. Staged files were checked for excluded `.env`, generated build artifacts, signing-key files and recognizable credential patterns; `git diff --cached --check` passed. Public DMG and Homebrew publication remain separate from source publication.
+
+
+## Public GitHub and Homebrew release — 1.3.1 (5)
+
+- Published stable release: https://github.com/exnano/udara/releases/tag/v1.3.1
+- Published tap: https://github.com/exnano/homebrew-tap (`Casks/udara.rb`, commit `b565dc5`).
+- Build source tag `v1.3.1` points to `f4e09ce`. The earlier `v1.3.0` tag was retained without published assets; the multi-architecture `lipo -verify_arch` call failed, so release tooling now checks each architecture individually.
+- Local Xcode 27 release pipeline passed 33 core tests, 20 release-tooling tests and 3 UI workflows, archived/exported the universal Developer ID app, and verified Hardened Runtime and entitlements.
+- App notarization `610a78b2-6671-4bb2-af4f-c124bed67e14`: Accepted, no issues.
+- DMG notarization `631b4eef-56ee-40a7-b1a4-1471f9ede802`: Accepted, no issues.
+- App and DMG stapled and validated; signatures and Gatekeeper passed, including the app mounted from the final DMG.
+- Final/public DMG SHA-256: `40b8ee58b646e78e659b1d290182ac85d7c9c2eddd61ea4a6ac37518bccd47bb`. Anonymous GitHub download matched; published assets include `SHA256SUMS`.
+- Homebrew style and online audit passed. Updated cask generator to current minimum-macOS syntax and alphabetical zap paths; all 20 tooling tests passed afterward.
+- `brew install --cask exnano/tap/udara` installed the public 1.3.1 app into `/Applications`. Installed version, strict signature, staple and Gatekeeper checks passed, and the app launched. Previous manually installed app retained in `build/releases/1.3.1/previous/Udara.app`; user data preserved.
+- GitHub-hosted CI currently fails at toolchain selection because its macOS runner lacks `/Applications/Xcode_27.0.app`. This release was built and tested locally; no hosted-CI pass is claimed.
+- Clean-machine browser/offline launch, macOS 26 and Intel runtime verification, and Homebrew cross-version upgrade/uninstall acceptance remain outstanding. The install here was on the development Mac.

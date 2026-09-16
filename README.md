@@ -54,4 +54,12 @@ Preview renders: [light](docs/previews/light.png) · [dark](docs/previews/dark.p
 
 See [release instructions](docs/RELEASING.md), [implementation plan](docs/plans/2026-09-16-udara-menubar-app.md), and [verification record](docs/VERIFICATION.md).
 
-Once releases exist, manual installation uses the signed DMG's Applications shortcut. Homebrew installs the same DMG through an owned tap. Source is hosted at `exnano/udara`. Public DMG releases and the Homebrew tap are not yet published.
+Download the signed and notarized [latest DMG](https://github.com/exnano/udara/releases/latest), open it, and drag Udara into Applications.
+
+Or install the same build through the [Exnano Homebrew tap](https://github.com/exnano/homebrew-tap):
+
+```sh
+brew install --cask exnano/tap/udara
+```
+
+Update with `brew update && brew upgrade --cask udara`. Requires macOS 26 or later; universal Apple silicon/Intel build. The version 1.3.1 release was validated locally with Xcode 27.0; GitHub-hosted CI currently lacks the pinned Xcode 27 installation.

@@ -68,16 +68,18 @@ Signing material is imported into a temporary keychain. Cleanup restores the ori
 
 ## Homebrew
 
-Create an owned `homebrew-tap` GitHub repository. After publishing the stable GitHub release:
+The public tap is `exnano/homebrew-tap`. After publishing the stable GitHub release:
 
 ```sh
-# Check out the published version tag; set GITHUB_REPOSITORY and UDARA_BUNDLE_ID.
-./scripts/generate-cask.py > /path/to/homebrew-tap/Casks/udara.rb
-brew style /path/to/homebrew-tap/Casks/udara.rb
-brew audit --cask --online /path/to/homebrew-tap/Casks/udara.rb
+# Check out the published version tag; configure GITHUB_REPOSITORY and UDARA_BUNDLE_ID in .env.
+brew tap exnano/tap
+tap_path="$(brew --repository exnano/tap)"
+./scripts/generate-cask.py > "$tap_path/Casks/udara.rb"
+brew style "$tap_path/Casks/udara.rb"
+brew audit --cask --online exnano/tap/udara
 ```
 
-The generator downloads the public release assets through `gh`, rejects private repositories and drafts/prereleases, and verifies the DMG checksum before producing the cask. Check and commit the resulting cask in the tap. Installation is then `brew install --cask <owner>/tap/udara`; upgrades use `brew upgrade --cask udara`.
+The generator downloads the public release assets through `gh`, rejects private repositories and drafts/prereleases, and verifies the DMG checksum before producing the cask. Check and commit the resulting cask in the tap. Installation is then `brew install --cask exnano/tap/udara`; upgrades use `brew upgrade --cask udara`.
 
 Test install, upgrade, ordinary uninstall, and explicit `brew uninstall --cask --zap udara`. Ordinary uninstall preserves preferences; `zap` deletes them. The cask intentionally does not declare `auto_updates`, because v1 has no in-app updater. An official Homebrew/core submission is not required for an owned tap.
 

@@ -52,13 +52,13 @@ print(f'''cask "udara" do
   desc "Menu bar air quality estimates for your cities"
   homepage "https://github.com/{repo}"
 
-  depends_on macos: ">= :tahoe"
+  depends_on macos: :tahoe
 
   app "Udara.app"
 
   zap trash: [
-    "~/Library/Containers/{bundle}",
     "~/Library/Application Support/Udara",
+    "~/Library/Containers/{bundle}",
     "~/Library/Preferences/{bundle}.plist",
   ]
 end''')
