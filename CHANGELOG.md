@@ -1,6 +1,8 @@
 # Changelog
 
-## Unreleased
+## 1.3.1 (5) — 2026-09-16
+
+- Fix release architecture validation by checking each universal slice individually.
 
 - Release, draft-release and Homebrew cask tooling load ignored local `.env` settings, with shell/CI overrides and literal parsing. Added `.env.example` and configuration guide.
 

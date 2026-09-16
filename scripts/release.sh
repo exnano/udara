@@ -41,7 +41,7 @@ xcodebuild -exportArchive -archivePath "$archive" -exportPath "$output/export" -
 app="$output/export/Udara.app"
 python3 scripts/version.py verify-plist "$app/Contents/Info.plist"
 codesign --verify --deep --strict --verbose=2 "$app"
-lipo "$app/Contents/MacOS/Udara" -verify_arch arm64 x86_64
+for architecture in arm64 x86_64; do lipo "$app/Contents/MacOS/Udara" -verify_arch "$architecture"; done
 codesign -dv --verbose=4 "$app" 2> "$output/app-signature.txt"
 grep -q 'flags=.*runtime' "$output/app-signature.txt" || { echo 'Release app is missing Hardened Runtime.' >&2; exit 1; }
 codesign -d --entitlements - --xml "$app" > "$output/app-entitlements.plist" 2>/dev/null
@@ -56,7 +56,8 @@ for file in pathlib.Path(sys.argv[2]).rglob('*'):
     if file.is_file() and not file.is_symlink():
         with file.open('rb') as handle: magic=handle.read(4)
         if magic in [bytes.fromhex(v) for v in ['cffaedfe','feedfacf','cafebabe','bebafeca','cafebabf']]:
-            subprocess.run(['lipo',str(file),'-verify_arch','arm64','x86_64'],check=True)
+            for architecture in ['arm64', 'x86_64']:
+                subprocess.run(['lipo',str(file),'-verify_arch',architecture],check=True)
 PYVERIFY
 /usr/libexec/PlistBuddy -c 'Print CFBundleIdentifier' "$app/Contents/Info.plist" | grep -Fx "$UDARA_BUNDLE_ID" >/dev/null
 notarize() {
@@ -95,7 +96,7 @@ trap 'hdiutil detach "$mountpoint" >/dev/null 2>&1 || true' EXIT
 hdiutil attach "$dmg" -nobrowse -readonly -mountpoint "$mountpoint"
 codesign --verify --deep --strict --verbose=2 "$mountpoint/Udara.app"
 xcrun stapler validate "$mountpoint/Udara.app"
-lipo "$mountpoint/Udara.app/Contents/MacOS/Udara" -verify_arch arm64 x86_64
+for architecture in arm64 x86_64; do lipo "$mountpoint/Udara.app/Contents/MacOS/Udara" -verify_arch "$architecture"; done
 spctl --assess --type execute --verbose=2 "$mountpoint/Udara.app"
 hdiutil detach "$mountpoint"
 trap - EXIT
