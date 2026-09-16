@@ -45,18 +45,29 @@ struct CitySearchView: View {
 }
 
 struct SettingsContent: View {
+    @Bindable var store: AppStore
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
             Label("Air quality, quietly close", systemImage: "wind").font(.headline)
             Text("Udara shows model-estimated US AQI. Forecasts may differ from nearby monitoring stations.")
-            LabeledContent("Downloads", value: "Every 24 hours")
+            Picker("Menu bar icon", selection: Binding(
+                get: { store.menuBarIconStyle },
+                set: { style in Task { await store.setMenuBarIconStyle(style) } }
+            )) {
+                ForEach(MenuBarIconStyle.allCases, id: \.self) { style in
+                    Text(style.title).tag(style)
+                }
+            }.pickerStyle(.segmented).accessibilityIdentifier("menuBarIconStyle")
+            Text("The number shows the highest available AQI across your current location and saved cities.")
+                .foregroundStyle(.secondary)
+            LabeledContent("Downloads", value: "Every hour")
             LabeledContent("Display", value: "Current hourly estimate")
-            Text("Cities and forecasts stay on this Mac. City searches and coordinates are sent to Open-Meteo; its servers receive your IP address. No account or location permission is required.")
+            Text("Cities and forecasts stay on this Mac. City searches and coordinates are sent to Open-Meteo; its servers receive your IP address. Current location is optional and needs macOS permission. Approximate coordinates also go to Apple to find the area name. Saved cities work without location access.")
             Text("Data: Open-Meteo and CAMS ENSEMBLE / CAMS global forecasts, under the applicable attribution licences. Udara rounds AQI to whole numbers.")
             Link("Data sources and attribution", destination: URL(string: "https://open-meteo.com/en/docs/air-quality-api")!)
             Link("Open-Meteo terms and licence", destination: URL(string: "https://open-meteo.com/en/terms")!)
             Text("Free, non-commercial use. Updates are installed through Homebrew or a replacement DMG from GitHub Releases.")
-            Text("Udara \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0")")
+            Text("Udara \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—") (\(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—"))")
                 .foregroundStyle(.secondary)
         }.font(.caption).padding(16).frame(width: 360)
     }

@@ -1,0 +1,3 @@
+// Single source of truth. Use python3 scripts/version.py bump patch|minor|major|build.
+MARKETING_VERSION = 1.3.0
+CURRENT_PROJECT_VERSION = 4

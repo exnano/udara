@@ -5,9 +5,6 @@ on:
       version:
         description: 'Existing version tag, without v (for example 1.0.0)'
         required: true
-      build_number:
-        description: 'Monotonically increasing integer'
-        required: true
 permissions:
   contents: read
 jobs:
@@ -16,7 +13,6 @@ jobs:
     runs-on: macos-26
     env:
       RELEASE_VERSION: ${{ inputs.version }}
-      BUILD_NUMBER: ${{ inputs.build_number }}
       UDARA_BUNDLE_ID: ${{ vars.UDARA_BUNDLE_ID }}
       APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
       SIGNING_IDENTITY: ${{ vars.SIGNING_IDENTITY }}
@@ -26,6 +22,8 @@ jobs:
         with:
           ref: v${{ inputs.version }}
           fetch-depth: 0
+      - name: Validate checked-out version against requested tag
+        run: python3 scripts/version.py check
       - name: Select pinned Xcode
         run: |
           sudo xcode-select -s /Applications/Xcode_27.0.app/Contents/Developer

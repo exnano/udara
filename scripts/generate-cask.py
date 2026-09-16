@@ -8,6 +8,13 @@ import re
 import subprocess
 import sys
 import tempfile
+from version import release_version
+from release_env import load_dotenv
+
+try:
+    load_dotenv()
+except (OSError, ValueError) as error:
+    raise SystemExit(f'Release environment error: {error}') from None
 
 def required(name, pattern):
     value = os.environ.get(name, '')
@@ -15,7 +22,10 @@ def required(name, pattern):
         raise SystemExit(f'Missing or invalid {name}')
     return value
 
-version = required('RELEASE_VERSION', r'\d+\.\d+\.\d+')
+try:
+    version = release_version()['version']
+except (OSError, ValueError) as error:
+    raise SystemExit(f'Version error: {error}')
 repo = required('GITHUB_REPOSITORY', r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+')
 bundle = required('UDARA_BUNDLE_ID', r'[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+')
 if bundle.startswith('local.'):

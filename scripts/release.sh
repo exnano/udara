@@ -1,8 +1,14 @@
 #!/bin/bash
 # Produces verified local artifacts; does not upload or publish a release.
 set -euo pipefail
-cd "$(dirname "$0")/.."
-for variable in UDARA_BUNDLE_ID APPLE_TEAM_ID SIGNING_IDENTITY NOTARY_PROFILE RELEASE_VERSION BUILD_NUMBER GITHUB_REPOSITORY; do
+cd -P "$(dirname "$0")/.."
+if [[ "${UDARA_ENV_LOADED:-}" != "$PWD" ]]; then
+    exec python3 scripts/release_env.py -- /bin/bash scripts/release.sh "$@"
+fi
+python3 scripts/version.py check
+export RELEASE_VERSION="$(python3 scripts/version.py show --field version)"
+export BUILD_NUMBER="$(python3 scripts/version.py show --field build)"
+for variable in UDARA_BUNDLE_ID APPLE_TEAM_ID SIGNING_IDENTITY NOTARY_PROFILE GITHUB_REPOSITORY; do
     [[ -n "${!variable:-}" ]] || { echo "Missing required release setting: $variable" >&2; exit 1; }
 done
 [[ "$UDARA_BUNDLE_ID" != local.* && "$UDARA_BUNDLE_ID" =~ ^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$ ]] || { echo 'Set a real reverse-domain bundle identifier.' >&2; exit 1; }
@@ -23,7 +29,6 @@ archive="$output/Udara.xcarchive"
 xcodebuild -project Udara.xcodeproj -scheme Udara -configuration Release -destination 'generic/platform=macOS' -archivePath "$archive" archive \
     "PRODUCT_BUNDLE_IDENTIFIER=$UDARA_BUNDLE_ID" "DEVELOPMENT_TEAM=$APPLE_TEAM_ID" \
     "CODE_SIGN_IDENTITY=$SIGNING_IDENTITY" CODE_SIGN_STYLE=Manual \
-    "MARKETING_VERSION=$RELEASE_VERSION" "CURRENT_PROJECT_VERSION=$BUILD_NUMBER" \
     'ARCHS=arm64 x86_64' ONLY_ACTIVE_ARCH=NO
 export UDARA_RELEASE_OUTPUT="$output"
 python3 - <<'PY'
@@ -34,16 +39,18 @@ p.write_bytes(plistlib.dumps({'method':'developer-id','teamID':os.environ['APPLE
 PY
 xcodebuild -exportArchive -archivePath "$archive" -exportPath "$output/export" -exportOptionsPlist "$output/ExportOptions.plist"
 app="$output/export/Udara.app"
+python3 scripts/version.py verify-plist "$app/Contents/Info.plist"
 codesign --verify --deep --strict --verbose=2 "$app"
 lipo "$app/Contents/MacOS/Udara" -verify_arch arm64 x86_64
 codesign -dv --verbose=4 "$app" 2> "$output/app-signature.txt"
 grep -q 'flags=.*runtime' "$output/app-signature.txt" || { echo 'Release app is missing Hardened Runtime.' >&2; exit 1; }
-codesign -d --entitlements - "$app" > "$output/app-entitlements.plist" 2>/dev/null
+codesign -d --entitlements - --xml "$app" > "$output/app-entitlements.plist" 2>/dev/null
 python3 - "$output/app-entitlements.plist" "$app" <<'PYVERIFY'
 import pathlib, plistlib, subprocess, sys
 entitlements=plistlib.loads(pathlib.Path(sys.argv[1]).read_bytes())
 assert entitlements.get('com.apple.security.app-sandbox') is True, 'Sandbox is required'
 assert entitlements.get('com.apple.security.network.client') is True, 'Outbound networking is required'
+assert entitlements.get('com.apple.security.personal-information.location') is True, 'Location entitlement is required'
 assert not entitlements.get('com.apple.security.get-task-allow', False), 'Debug entitlement in release'
 for file in pathlib.Path(sys.argv[2]).rglob('*'):
     if file.is_file() and not file.is_symlink():

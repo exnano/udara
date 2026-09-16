@@ -2,9 +2,9 @@
 
 ## Required configuration
 
-The development bundle ID (`local.udara.udara`) is a local-only placeholder. Before the first release choose a permanent reverse-domain ID under your control; changing it later changes the sandbox container and migration needs.
+The project code name is **Exnano Udara**. The installed application is **Udara.app**, with display name **Udara** and production bundle identifier **`io.exnano.udara`**. Set `UDARA_BUNDLE_ID=io.exnano.udara` for distribution builds. The development bundle ID (`local.udara.udara`) remains separate. Changing the production identifier later changes the sandbox container and migration needs.
 
-Supply these environment values outside source control:
+Version/build come from `Config/Version.xcconfig`; see [VERSIONING.md](VERSIONING.md) for bump commands and changelog/tag steps. Supply these identity settings outside source control:
 
 | Variable | Purpose |
 | --- | --- |
@@ -12,17 +12,37 @@ Supply these environment values outside source control:
 | `APPLE_TEAM_ID` | Ten-character Apple Developer team ID |
 | `SIGNING_IDENTITY` | Full `Developer ID Application: …` identity in Keychain |
 | `NOTARY_PROFILE` | Keychain credential profile for `notarytool` |
-| `RELEASE_VERSION` | SemVer, e.g. `1.0.0` |
-| `BUILD_NUMBER` | Increasing positive integer |
 | `GITHUB_REPOSITORY` | Actual `owner/repository` |
 
 Apple Developer Program membership and a valid Developer ID Application certificate are required. Configure notarization credentials using `xcrun notarytool store-credentials` interactively; do not place passwords/private keys in shell scripts, Git, release notes, or logs.
 
+## Local .env configuration
+
+The release, draft-release and cask-generation scripts automatically load the repository-root `.env`, regardless of your working directory. `.env` is ignored by Git; `.env.example` is safe to commit.
+
+```sh
+cp .env.example .env  # first-time setup only; preserve an existing local file
+```
+
+Set your local values:
+
+```dotenv
+GITHUB_REPOSITORY=exnano/udara
+UDARA_BUNDLE_ID=io.exnano.udara
+APPLE_TEAM_ID=6G94876K55
+SIGNING_IDENTITY='Developer ID Application: MZR Global Sdn Bhd (6G94876K55)'
+NOTARY_PROFILE=udara-notary
+```
+
+Then run `./scripts/release.sh` without exporting those variables. Existing exported variables (including empty ones) take precedence, so CI settings remain authoritative. Missing `.env` files are allowed; required release checks still apply. For draft creation, also set `RELEASE_NOTES_FILE` in `.env` or your shell.
+
+The format supports `KEY=value`, optional `export`, single/double quotes, blank lines and comments. Quote values containing spaces. Values are literal: no shell commands, variable expansion, escape-sequence expansion or multiline values. Parse errors report a line number without printing its contents. Notarization credentials stay in Keychain; `.env` only needs the profile name.
+
 ## Local release
 
-1. Run tests, verify previews, and commit the intended source. Create the matching `v<version>` tag; push the tag to the actual GitHub repository before creating the GitHub release.
+1. Update the version and changelog using the versioning guide, run tests, verify previews, and commit the intended source. Create the matching `v<version>` tag; push the tag to the actual GitHub repository before creating the GitHub release.
 2. Select Xcode 27.0 using `DEVELOPER_DIR` if needed.
-3. Export the settings above, then run `./scripts/release.sh`.
+3. Configure `.env` (or export the settings above), then run `./scripts/release.sh`.
 4. Inspect the retained notarization logs and final DMG in `build/releases/<version>/`.
 5. Test a browser-downloaded/quarantined build on a clean Mac, including an offline first launch. Test both macOS 26 and 27 and both CPU architectures before claiming that support matrix is verified.
 6. Set `RELEASE_NOTES_FILE` to a reviewed Markdown file; run `./scripts/create-draft-release.sh`.
@@ -34,7 +54,7 @@ Signature verification uses `codesign --verify`, `spctl --assess`, and `xcrun st
 
 ## GitHub Actions
 
-`ci.yml` runs core and Xcode tests plus a universal build without distribution credentials. `release.yml` is manually dispatched against an existing version tag and produces a signed candidate artifact; it does not publish a GitHub release or change a tap.
+`ci.yml` runs core and Xcode tests plus a universal build without distribution credentials. `release.yml` takes the version of an existing tag, validates it against the checked-out config, and derives the build number from that config. It is manually dispatched against that tag and produces a signed candidate artifact; it does not publish a GitHub release or change a tap.
 
 Both workflows require a runner with `/Applications/Xcode_27.0.app`; they fail rather than silently using a different compiler. They are configured for `macos-26`. Confirm that the hosted runner image includes this newly released Xcode before enabling CI, or assign an equivalent maintained macOS runner with that installation.
 
@@ -51,7 +71,7 @@ Signing material is imported into a temporary keychain. Cleanup restores the ori
 Create an owned `homebrew-tap` GitHub repository. After publishing the stable GitHub release:
 
 ```sh
-# Set RELEASE_VERSION, GITHUB_REPOSITORY, and UDARA_BUNDLE_ID first.
+# Check out the published version tag; set GITHUB_REPOSITORY and UDARA_BUNDLE_ID.
 ./scripts/generate-cask.py > /path/to/homebrew-tap/Casks/udara.rb
 brew style /path/to/homebrew-tap/Casks/udara.rb
 brew audit --cask --online /path/to/homebrew-tap/Casks/udara.rb

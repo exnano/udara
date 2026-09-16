@@ -7,12 +7,12 @@ struct ResilienceTests {
     @Test func expiredCacheRefreshesButScheduledJitterWaits() async throws {
         let provider = CountingProvider(now: now)
         let persistence = MemoryPersistence()
-        let forecast = CityForecast(fetchedAt: now.addingTimeInterval(-86400), samples: [])
-        try persistence.save(.init(cities: [city()], forecasts: [1: forecast], scheduled: [1: now.addingTimeInterval(300)]))
+        let forecast = CityForecast(fetchedAt: now.addingTimeInterval(-3600), samples: [])
+        try persistence.save(.init(cities: [city()], forecasts: [1: forecast], scheduled: [1: now.addingTimeInterval(30)]))
         let waiting = try ForecastRepository(provider: provider, persistence: persistence, clock: FixedClock(now: now))
         _ = await waiting.refreshDue()
         #expect(await provider.calls == 0)
-        let due = try ForecastRepository(provider: provider, persistence: persistence, clock: FixedClock(now: now.addingTimeInterval(300)))
+        let due = try ForecastRepository(provider: provider, persistence: persistence, clock: FixedClock(now: now.addingTimeInterval(30)))
         _ = await due.refreshDue()
         #expect(await provider.calls == 1)
     }
@@ -156,4 +156,33 @@ final class MutableClock: AppClock, @unchecked Sendable {
     init(_ date: Date) { self.date = date }
     var now: Date { lock.withLock { date } }
     func advance(_ seconds: TimeInterval) { lock.withLock { date = date.addingTimeInterval(seconds) } }
+}
+
+struct HourlyRefreshTests {
+    let now = Date(timeIntervalSince1970: 1_800_000_000)
+    @Test func downloadsAgainAfterOneHourButNotBefore() async throws {
+        let clock = MutableClock(now)
+        let provider = CountingProvider(now: now)
+        let repository = try ForecastRepository(provider: provider, persistence: MemoryPersistence(), clock: clock, jitter: { 0 })
+        try await repository.add(city())
+        _ = await repository.refreshDue()
+        clock.advance(3599)
+        _ = await repository.refreshDue()
+        #expect(await provider.calls == 1)
+        clock.advance(1)
+        _ = await repository.refreshDue()
+        #expect(await provider.calls == 2)
+    }
+    @Test func upgradesDailyDeadlinesWithoutDiscardingCitiesOrRetryAfter() async throws {
+        let persistence = MemoryPersistence()
+        let old = CityForecast(fetchedAt: now.addingTimeInterval(-7200), samples: [.init(time: now, value: 12)])
+        try persistence.save(.init(cities: [city(1), city(2)], forecasts: [1: old, 2: old], scheduled: [1: now.addingTimeInterval(79200), 2: now.addingTimeInterval(79200)], retries: [2: .init(failures: 1, nextAttempt: now.addingTimeInterval(600), message: "Rate limited")]))
+        let provider = CountingProvider(now: now)
+        let repository = try ForecastRepository(provider: provider, persistence: persistence, clock: FixedClock(now: now), jitter: { 0 })
+        let state = await repository.refreshDue()
+        #expect(await provider.calls == 1)
+        #expect(state.cities.count == 2)
+        #expect(state.forecasts[1]?.fetchedAt == now)
+        #expect(state.retries[2]?.nextAttempt == now.addingTimeInterval(600))
+    }
 }

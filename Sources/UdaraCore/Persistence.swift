@@ -17,6 +17,8 @@ struct RepositorySnapshot: Codable, Sendable {
     var retries: [Int: RetryState] = [:]
     var searches: [String: SearchCacheEntry] = [:]
     var searchRetry: RetryState?
+    var currentLocation: SavedCity?
+    var menuBarIconStyle: MenuBarIconStyle?
 }
 protocol SnapshotPersistence: Sendable {
     func load() throws -> RepositorySnapshot?

@@ -8,17 +8,65 @@ actor ForecastRepository {
     private let jitter: @Sendable () -> TimeInterval
     private var state: RepositorySnapshot
     private var inFlight: [Int: Task<CityForecast, any Error>] = [:]
+    private var locationEnabled = false
     private var generations: [Int: UUID] = [:]
     private(set) var persistenceWarning: String?
 
     init(provider: any AirQualityProvider, searchProvider: (any CitySearchProvider)? = nil,
          persistence: any SnapshotPersistence, clock: any AppClock = SystemClock(),
-         jitter: @escaping @Sendable () -> TimeInterval = { Double.random(in: 0...900) }) throws {
+         jitter: @escaping @Sendable () -> TimeInterval = { Double.random(in: 0...ForecastRefreshPolicy.maximumJitter) }) throws {
         self.provider = provider; self.searchProvider = searchProvider; self.persistence = persistence
         self.clock = clock; self.jitter = jitter
         state = try persistence.load() ?? RepositorySnapshot()
+        // Normalize legacy daily deadlines without clearing forecasts, cities or server cooldowns.
+        for (id, forecast) in state.forecasts {
+            let earliest = forecast.fetchedAt.addingTimeInterval(ForecastRefreshPolicy.interval)
+            let latest = earliest.addingTimeInterval(ForecastRefreshPolicy.maximumJitter)
+            state.scheduled[id] = min(latest, max(earliest, state.scheduled[id] ?? earliest))
+        }
     }
     func snapshot() -> RepositorySnapshot { state }
+    func setMenuBarIconStyle(_ style: MenuBarIconStyle) throws {
+        var next = state
+        next.menuBarIconStyle = style
+        try persistence.save(next)
+        state = next
+    }
+    private var activeCities: [SavedCity] {
+        state.cities + (locationEnabled ? state.currentLocation.map { [$0] } ?? [] : [])
+    }
+    func suspendCurrentLocation() {
+        locationEnabled = false
+        generations[-1] = UUID()
+        inFlight.removeValue(forKey: -1)?.cancel()
+    }
+    func setCurrentLocation(_ city: SavedCity?) throws {
+        precondition(city == nil || city?.id == -1)
+        let old = state.currentLocation
+        let moved = old?.latitude != city?.latitude || old?.longitude != city?.longitude
+        var next = state
+        next.currentLocation = city
+        if moved || city == nil {
+            next.forecasts[-1] = nil
+            next.scheduled[-1] = nil
+            // Keep server cooldowns when moving; clear private data on revocation.
+            if city == nil { next.retries[-1] = nil }
+        }
+        if city == nil {
+            suspendCurrentLocation()
+            state = next
+            try persistence.save(next)
+            return
+        }
+        try persistence.save(next)
+        state = next
+        locationEnabled = true
+        if moved || city == nil {
+            generations[-1] = UUID()
+            inFlight.removeValue(forKey: -1)?.cancel()
+        }
+    }
+
     func add(_ city: SavedCity) throws {
         guard !state.cities.contains(where: { $0.id == city.id }) else { return }
         var next = state; next.cities.append(city)
@@ -34,20 +82,20 @@ actor ForecastRepository {
         inFlight.removeValue(forKey: id)?.cancel()
     }
     func refreshDue() async -> RepositorySnapshot {
-        let cities = state.cities
+        let cities = activeCities
         await withTaskGroup(of: Void.self) { group in
             for city in cities { group.addTask { await self.refresh(city) } }
         }
         return state
     }
     private func refresh(_ city: SavedCity) async {
-        guard state.cities.contains(where: { $0.id == city.id }) else { return }
+        guard activeCities.contains(where: { $0.id == city.id }) else { return }
         if let task = inFlight[city.id] { _ = try? await task.value; return }
         let now = clock.now
         if let retry = state.retries[city.id], retry.nextAttempt > now { return }
         if let forecast = state.forecasts[city.id] {
             // On clock rollback, wait for the original deadline rather than causing a request burst.
-            let deadline = state.scheduled[city.id] ?? forecast.fetchedAt.addingTimeInterval(86400)
+            let deadline = state.scheduled[city.id] ?? forecast.fetchedAt.addingTimeInterval(ForecastRefreshPolicy.interval)
             if deadline > now { return }
         }
         let generation = generations[city.id] ?? UUID()
@@ -57,11 +105,11 @@ actor ForecastRepository {
         let result = await task.result
         guard generations[city.id] == generation else { return }
         inFlight[city.id] = nil
-        guard state.cities.contains(where: { $0.id == city.id }) else { return }
+        guard activeCities.contains(where: { $0.id == city.id }) else { return }
         switch result {
         case .success(let forecast):
             state.forecasts[city.id] = forecast
-            state.scheduled[city.id] = forecast.fetchedAt.addingTimeInterval(86400 + boundedJitter())
+            state.scheduled[city.id] = forecast.fetchedAt.addingTimeInterval(ForecastRefreshPolicy.interval + boundedJitter())
             state.retries[city.id] = nil
         case .failure(let error):
             guard !(error is CancellationError) else { return }
@@ -98,7 +146,7 @@ actor ForecastRepository {
             throw error
         }
     }
-    private func boundedJitter() -> TimeInterval { min(900, max(0, jitter())) }
+    private func boundedJitter() -> TimeInterval { min(ForecastRefreshPolicy.maximumJitter, max(0, jitter())) }
     private func retryState(_ error: any Error, previous: RetryState?) -> RetryState {
         let failures = min((previous?.failures ?? 0) + 1, 100)
         let intervals: [TimeInterval] = [60, 300, 900, 3600]

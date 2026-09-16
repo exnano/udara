@@ -30,3 +30,70 @@ struct AQIBadge: View {
         .accessibilityLabel(reading.map { "Estimated US AQI \($0.value), \($0.category.title)" } ?? "AQI unavailable")
     }
 }
+
+/// Glass belongs to the navigation/action layer; AQI colours stay solid for legibility.
+extension EnvironmentValues {
+    @Entry var udaraReduceTransparencyOverride: Bool? = nil
+}
+
+extension View {
+    func udaraGlassChrome() -> some View { modifier(UdaraGlassChrome()) }
+    func udaraGlassButton(prominent: Bool = false) -> some View {
+        modifier(UdaraGlassButton(prominent: prominent))
+    }
+}
+private struct UdaraGlassChrome: ViewModifier {
+    @Environment(\.accessibilityReduceTransparency) private var systemReduceTransparency
+    @Environment(\.udaraReduceTransparencyOverride) private var reduceTransparencyOverride
+    private var reduceTransparency: Bool { reduceTransparencyOverride ?? systemReduceTransparency }
+    func body(content: Content) -> some View {
+        if reduceTransparency {
+            content.background(Color(nsColor: .windowBackgroundColor), in: RoundedRectangle(cornerRadius: 16))
+        } else {
+            content.glassEffect(.regular, in: .rect(cornerRadius: 16))
+        }
+    }
+}
+private struct UdaraGlassButton: ViewModifier {
+    var prominent: Bool
+    @Environment(\.accessibilityReduceTransparency) private var systemReduceTransparency
+    @Environment(\.udaraReduceTransparencyOverride) private var reduceTransparencyOverride
+    private var reduceTransparency: Bool { reduceTransparencyOverride ?? systemReduceTransparency }
+    @ViewBuilder func body(content: Content) -> some View {
+        if reduceTransparency {
+            if prominent { content.buttonStyle(.borderedProminent) }
+            else { content.buttonStyle(.bordered) }
+        } else {
+            if prominent { content.buttonStyle(.glassProminent) }
+            else { content.buttonStyle(.glass) }
+        }
+    }
+}
+
+
+/// Render icon and number together so MenuBarExtra cannot collapse a Label to icon-only.
+@MainActor enum MenuBarGlyph {
+    static func image(reading: AQIReading?, style: MenuBarIconStyle) -> NSImage {
+        let content = HStack(spacing: 5) {
+            Image(systemName: style.symbol(for: reading?.category)).frame(width: 18)
+            Text(reading.map { String($0.value) } ?? "—")
+                .monospacedDigit()
+        }
+        .font(.system(size: 13, weight: .medium))
+        .foregroundStyle(.black)
+        .fixedSize()
+        .frame(height: 22)
+        let renderer = ImageRenderer(content: content)
+        renderer.scale = 2
+        guard let cgImage = renderer.cgImage else { return NSImage() }
+        let image = NSImage(cgImage: cgImage, size: NSSize(width: CGFloat(cgImage.width) / 2, height: 22))
+        image.isTemplate = true
+        return image
+    }
+}
+
+#if DEBUG
+#Preview("Menu bar · Udara") { Image(nsImage: MenuBarGlyph.image(reading: AQIReading(74), style: .udara)).padding() }
+#Preview("Menu bar · Dynamic") { Image(nsImage: MenuBarGlyph.image(reading: AQIReading(168), style: .dynamic)).padding() }
+#Preview("Menu bar · Unavailable") { Image(nsImage: MenuBarGlyph.image(reading: nil, style: .udara)).padding() }
+#endif

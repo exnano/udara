@@ -56,6 +56,11 @@ struct HourlyAQISample: Codable, Sendable {
     let time: Date
     let value: Double?
 }
+enum ForecastRefreshPolicy {
+    static let interval: TimeInterval = 3600
+    static let maximumJitter: TimeInterval = 60
+}
+
 struct CityForecast: Codable, Sendable {
     let fetchedAt: Date
     let samples: [HourlyAQISample]
@@ -64,7 +69,7 @@ struct CityForecast: Codable, Sendable {
         return samples.first { $0.time.timeIntervalSince1970 == hour }.flatMap { AQIReading($0.value) }
     }
     func isOverdue(at date: Date) -> Bool {
-        date < fetchedAt || date.timeIntervalSince(fetchedAt) >= 86400
+        date < fetchedAt || date.timeIntervalSince(fetchedAt) >= ForecastRefreshPolicy.interval
     }
 }
 struct CityStatus: Identifiable, Sendable {
@@ -89,3 +94,17 @@ struct SystemClock: AppClock { var now: Date { Date() } }
 struct FixedClock: AppClock { let now: Date }
 protocol CitySearchProvider: Sendable { func search(_ query: String) async throws -> [SavedCity] }
 protocol AirQualityProvider: Sendable { func forecast(for city: SavedCity) async throws -> CityForecast }
+
+/// The current location has a reserved identity outside geocoding's city IDs.
+enum LocationPhase: Equatable, Sendable {
+    case notRequested, locating, located, denied, unavailable
+}
+
+
+enum MenuBarIconStyle: String, Codable, CaseIterable, Sendable {
+    case udara, dynamic
+    var title: String { self == .udara ? "Udara icon" : "Dynamic AQI icon" }
+    func symbol(for category: AQICategory?) -> String {
+        self == .dynamic ? category?.symbol ?? "wind" : "wind"
+    }
+}

@@ -3,40 +3,46 @@ import SwiftUI
 struct MenuView: View {
     @Bindable var store: AppStore
     @State private var page: Page = .cities
-    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+    @Environment(\.accessibilityReduceTransparency) private var systemReduceTransparency
+    @Environment(\.udaraReduceTransparencyOverride) private var reduceTransparencyOverride
+    private var reduceTransparency: Bool { reduceTransparencyOverride ?? systemReduceTransparency }
     enum Page { case cities, search, settings }
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                Image(systemName: "wind").font(.title2).foregroundStyle(.teal)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Udara").font(.title3.bold())
-                    Text("Estimated US AQI").font(.caption).foregroundStyle(.secondary)
-                }
-                Spacer()
-                if page != .cities {
-                    Button("Done") { page = .cities }.keyboardShortcut(.cancelAction)
-                } else {
-                    Button { page = .search } label: { Image(systemName: "plus") }
-                        .help("Add city").accessibilityLabel("Add city").accessibilityIdentifier("addCity")
-                }
-            }.padding(16)
+            GlassEffectContainer(spacing: 12) {
+                HStack(spacing: 10) {
+                    Image(systemName: "wind").font(.title2).foregroundStyle(.teal)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Udara").font(.title3.bold())
+                        Text("Estimated US AQI").font(.caption).foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    if page != .cities {
+                        Button("Done") { page = .cities }.keyboardShortcut(.cancelAction).udaraGlassButton()
+                    } else {
+                        Button { page = .search } label: { Image(systemName: "plus") }
+                            .help("Add city").accessibilityLabel("Add city").accessibilityIdentifier("addCity").udaraGlassButton()
+                    }
+                }.padding(12).udaraGlassChrome()
+            }.padding(10)
             Divider()
             switch page {
             case .cities: cities
             case .search: CitySearchView(store: store)
-            case .settings: SettingsContent()
+            case .settings: SettingsContent(store: store)
             }
             Divider()
-            HStack {
-                Button { page = page == .settings ? .cities : .settings } label: { Image(systemName: "gearshape") }
-                    .help("Settings and about").accessibilityLabel("Settings").accessibilityIdentifier("settings")
-                Spacer()
-                Link("Open-Meteo · CAMS", destination: URL(string: "https://open-meteo.com/en/docs/air-quality-api")!)
-                    .font(.caption2)
-                Spacer()
-                Button("Quit") { NSApplication.shared.terminate(nil) }.keyboardShortcut("q")
-            }.buttonStyle(.borderless).padding(12)
+            GlassEffectContainer(spacing: 12) {
+                HStack {
+                    Button { page = page == .settings ? .cities : .settings } label: { Image(systemName: "gearshape") }
+                        .help("Settings and about").accessibilityLabel("Settings").accessibilityIdentifier("settings").udaraGlassButton()
+                    Spacer()
+                    Link("Open-Meteo · CAMS", destination: URL(string: "https://open-meteo.com/en/docs/air-quality-api")!)
+                        .font(.caption2)
+                    Spacer()
+                    Button("Quit") { NSApplication.shared.terminate(nil) }.keyboardShortcut("q").udaraGlassButton()
+                }.padding(12)
+            }
         }
         .frame(width: 360)
         .background {
@@ -44,15 +50,48 @@ struct MenuView: View {
             else { Rectangle().fill(.regularMaterial) }
         }
     }
+    private var currentLocation: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Label("Current location", systemImage: "location.fill").font(.caption.bold())
+                Spacer()
+                if store.locationPhase == .located {
+                    Button { store.requestLocation?() } label: { Image(systemName: "location") }
+                        .accessibilityLabel("Detect current location").udaraGlassButton()
+                }
+            }.padding(.horizontal, 16).padding(.top, 12)
+            if let row = store.currentLocationRow {
+                CityRowView(status: row, retry: store.state.retries[-1], removable: false)
+            } else {
+                VStack(alignment: .leading, spacing: 8) {
+                    switch store.locationPhase {
+                    case .locating:
+                        HStack { ProgressView().controlSize(.small); Text("Finding your location…") }
+                    case .denied:
+                        Text("Location access is off. Enable it in System Settings to see nearby air quality.")
+                        Button("Location Settings") { store.requestLocation?() }.udaraGlassButton()
+                    case .unavailable:
+                        Text("Your location is unavailable right now.")
+                        Button("Try again") { store.requestLocation?() }.udaraGlassButton()
+                    default:
+                        Text("See the air quality where you are.")
+                        Button("Enable location") { store.requestLocation?() }.udaraGlassButton()
+                    }
+                }.font(.caption).foregroundStyle(.secondary).padding(16)
+            }
+        }.accessibilityIdentifier("currentLocation")
+    }
     private var cities: some View {
         VStack(spacing: 0) {
+            currentLocation
+            Divider()
             if store.rows.isEmpty {
                 ContentUnavailableView {
                     Label("A little clarity, city by city", systemImage: "leaf")
                 } description: {
                     Text("Keep the air quality of places you care about close at hand.")
                 } actions: {
-                    Button("Add your first city") { page = .search }.buttonStyle(.borderedProminent)
+                    Button("Add your first city") { page = .search }.udaraGlassButton(prominent: true)
                 }.padding(.vertical, 18)
             } else {
                 ScrollView {
@@ -64,14 +103,14 @@ struct MenuView: View {
                             if row.id != store.rows.last?.id { Divider().padding(.horizontal, 16) }
                         }
                     }
-                }.frame(height: min(CGFloat(store.rows.count) * 142, 520))
+                }.frame(height: min(CGFloat(store.rows.count) * 142, store.currentLocationRow == nil ? 360 : 320))
             }
             if let message = store.startupWarning ?? store.errorMessage {
                 Text(message).font(.caption).foregroundStyle(.red).padding(12).textSelection(.enabled)
             }
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(store.isRefreshing ? "Checking forecasts…" : "Hourly estimates · daily downloads")
+                    Text(store.isRefreshing ? "Checking forecasts…" : "Hourly estimates · hourly updates")
                     if let next = store.nextDownload {
                         Text("Next check \(relativeDate(next, to: store.now))")
                     }
@@ -79,8 +118,8 @@ struct MenuView: View {
                 Spacer(minLength: 4)
                 Button { Task { await store.refresh() } } label: {
                     Image(systemName: "arrow.clockwise")
-                }.disabled(store.isRefreshing).help("Check for due updates; cached forecasts are kept for 24 hours")
-                    .accessibilityLabel("Check for updates").accessibilityIdentifier("refresh")
+                }.disabled(store.isRefreshing).help("Check for due updates; forecasts download hourly with up to one minute of jitter")
+                    .accessibilityLabel("Check for updates").accessibilityIdentifier("refresh").udaraGlassButton()
             }.padding(12)
         }
     }
@@ -89,6 +128,7 @@ struct MenuView: View {
 struct CityRowView: View {
     let status: CityStatus
     var retry: RetryState? = nil
+    var removable = true
     var remove: () -> Void = {}
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
@@ -99,11 +139,13 @@ struct CityRowView: View {
                 }
                 Spacer(minLength: 4)
                 AQIBadge(reading: status.reading)
+                if removable {
                 Menu {
                     Button("Remove city", role: .destructive, action: remove)
                 } label: { Image(systemName: "ellipsis") }
                     .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize().frame(width: 18)
                     .accessibilityLabel("Actions for \(status.city.name)")
+                }
             }
             Text(status.reading?.category.title ?? "No estimate for this hour")
                 .font(.caption.weight(.medium))

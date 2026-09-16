@@ -61,8 +61,8 @@ struct OpenMeteoProvider: CitySearchProvider, AirQualityProvider {
               zip(hourly.time, hourly.time.dropFirst()).allSatisfy({ $1 - $0 == 3600 })
         else { throw ProviderError.invalidResponse }
         let currentHour = floor(fetchedAt.timeIntervalSince1970 / 3600) * 3600
-        // Enough coverage for the next 24-hour refresh, including scheduling jitter.
-        guard hourly.time.first! <= currentHour, hourly.time.last! >= currentHour + 25 * 3600 else {
+        // Enough coverage for the next hourly refresh, including scheduling jitter.
+        guard hourly.time.first! <= currentHour, hourly.time.last! >= currentHour + 2 * 3600 else {
             throw ProviderError.invalidResponse
         }
         return CityForecast(fetchedAt: fetchedAt, samples: zip(hourly.time, hourly.us_aqi).map {

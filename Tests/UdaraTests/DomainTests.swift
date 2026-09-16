@@ -18,8 +18,8 @@ struct DomainTests {
     @Test func overdueAndClockRollbackAreExplicit() {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let forecast = CityForecast(fetchedAt: now, samples: [])
-        #expect(!forecast.isOverdue(at: now.addingTimeInterval(86399)))
-        #expect(forecast.isOverdue(at: now.addingTimeInterval(86400)))
+        #expect(!forecast.isOverdue(at: now.addingTimeInterval(3599)))
+        #expect(forecast.isOverdue(at: now.addingTimeInterval(3600)))
         #expect(forecast.isOverdue(at: now.addingTimeInterval(-3600)))
     }
     @Test func descendingOrderWithStableTiesAndMissingLast() {

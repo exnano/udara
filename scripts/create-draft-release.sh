@@ -1,7 +1,11 @@
 #!/bin/bash
 set -euo pipefail
-cd "$(dirname "$0")/.."
-: "${RELEASE_VERSION:?Set RELEASE_VERSION}"
+cd -P "$(dirname "$0")/.."
+if [[ "${UDARA_ENV_LOADED:-}" != "$PWD" ]]; then
+    exec python3 scripts/release_env.py -- /bin/bash scripts/create-draft-release.sh "$@"
+fi
+python3 scripts/version.py check
+RELEASE_VERSION="$(python3 scripts/version.py show --field version)"
 : "${GITHUB_REPOSITORY:?Set owner/repository}"
 : "${RELEASE_NOTES_FILE:?Set the path to reviewed release notes}"
 [[ "$RELEASE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1

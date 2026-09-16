@@ -10,6 +10,36 @@ import Observation
     var startupWarning: String?
     var errorMessage: String?
     var searchError: String?
+    var locationPhase: LocationPhase = .notRequested
+    @ObservationIgnored private var locationRevision = UUID()
+    @ObservationIgnored var requestLocation: (() -> Void)?
+    var currentLocationRow: CityStatus? {
+        guard locationPhase == .located, let city = state.currentLocation else { return nil }
+        return CityStatus(city: city, forecast: state.forecasts[-1], now: now)
+    }
+    func updateLocation(_ city: SavedCity) async {
+        let revision = UUID(); locationRevision = revision
+        do {
+            try await repository.setCurrentLocation(city)
+            guard locationRevision == revision else { return }
+            locationPhase = .located
+            await load()
+            await refresh()
+        } catch {
+            guard locationRevision == revision else { return }
+            errorMessage = error.localizedDescription; locationPhase = .unavailable
+        }
+    }
+    func locationUnavailable(_ phase: LocationPhase) async {
+        locationRevision = UUID()
+        locationPhase = phase
+        do {
+            if phase == .denied { try await repository.setCurrentLocation(nil) }
+            else { await repository.suspendCurrentLocation() }
+            await load()
+        }
+        catch { errorMessage = error.localizedDescription }
+    }
     @ObservationIgnored private let repository: ForecastRepository
     @ObservationIgnored private let clock: any AppClock
     @ObservationIgnored private var searchGeneration = UUID()
@@ -24,9 +54,14 @@ import Observation
         if let fixture { state = fixture }
     }
     var rows: [CityStatus] { CityStatus.sorted(cities: state.cities, forecasts: state.forecasts, now: now) }
-    var highest: AQIReading? { rows.first?.reading }
+    var menuBarIconStyle: MenuBarIconStyle { state.menuBarIconStyle ?? .udara }
+    func setMenuBarIconStyle(_ style: MenuBarIconStyle) async {
+        do { try await repository.setMenuBarIconStyle(style); await load() }
+        catch { errorMessage = error.localizedDescription }
+    }
+    var highest: AQIReading? { (rows.compactMap(\.reading) + [currentLocationRow?.reading].compactMap { $0 }).max { $0.value < $1.value } }
     var nextDownload: Date? {
-        state.cities.compactMap { city in
+        (state.cities + (currentLocationRow.map { [$0.city] } ?? [])).compactMap { city in
             if let retry = state.retries[city.id] { return retry.nextAttempt }
             return state.scheduled[city.id]
         }.min()
