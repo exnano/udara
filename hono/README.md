@@ -23,7 +23,7 @@ Root `.env` configures the Mac app API URL separately. Tokens remain server-side
 The schema-version-1 response retains station identity, distance, source `doe`, Malaysian index scale `MY_API`, overall index, separate nullable PM2.5 sub-index, nullable 24-hour PM2.5 concentration, observation/download times and attribution. Never substitute the overall index for missing PM2.5. DOE observations older than two hours or over five minutes in the future are rejected. The DOE-specific timestamp correction is documented in the project plan.
 
 - 400: invalid location or metric.
-- Outside Malaysia, query Open-Meteo directly. Its result is validated for proximity and freshness.
+- Outside Malaysia, query Open-Meteo directly. Its result must contain the current UTC-hour estimate and valid model grid coordinates.
 - 503 `no_usable_observation`: DOE failed, is stale, or has no usable nearby station. Includes a 300-second retry hint. Open-Meteo fallback is attempted first.
 - 500: invalid server configuration or unexpected failure; no raw error details returned.
 

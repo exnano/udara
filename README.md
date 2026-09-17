@@ -10,7 +10,7 @@ Source repository: [exnano/udara](https://github.com/exnano/udara).
 - Permanent current-location row with optional macOS location detection.
 - Saved cities sorted by descending estimated PM2.5 AQI.
 - Six quality categories with icons, colours, and text labels.
-- Keyless Open-Meteo/CAMS forecasts, downloaded hourly per city.
+- DOE Malaysia station readings with keyless Open-Meteo/CAMS model fallback.
 - Current-hour display from a local forecast cache; explicit overdue/unavailable states.
 - City search, local persistence, keyboard navigation, and light/dark appearance.
 - Native SwiftUI Liquid Glass controls with a solid reduced-transparency fallback.
@@ -42,11 +42,11 @@ See the [versioning guide](docs/VERSIONING.md) for examples and release/tag inst
 
 ## Data and privacy
 
-Values are **estimated PM2.5 AQI on the US scale**, not IQAir readings or live station observations. Data comes from [Open-Meteo](https://open-meteo.com/en/docs/air-quality-api), using CAMS ENSEMBLE and CAMS global forecasts. Geocoding is supplied by Open-Meteo/GeoNames. The AQI uses `us_aqi_pm2_5`, based on a preceding 24-hour PM2.5 average. The separately displayed `pm2_5` concentration is an hourly model estimate in µg/m³. They use different averaging periods, so the hourly concentration should not be converted directly to reproduce the displayed AQI. AQI values are rounded to whole numbers for display and classification. Source data attribution and applicable licences: [Open-Meteo licence](https://open-meteo.com/en/licence), [CAMS](https://atmosphere.copernicus.eu/).
+DOE readings show the Malaysian PM2.5 API. Open-Meteo fallback shows **estimated PM2.5 US AQI**, not station observations, with Open-Meteo/CAMS attribution. The two scales are labelled separately. DOE may supply a measured 24-hour concentration; model concentrations are not presented as that quantity. Forecast validity identifies the estimated hour, not the model run age.
 
 The hosted free API is for **non-commercial use**. Reassess the service agreement before commercial use or large-scale distribution. Caching reduces requests; it does not confer unlimited service capacity.
 
-No account or analytics. Location permission is optional: enable it from the pinned Current location row. Udara takes a one-shot fix at launch, hourly, after wake, or when you explicitly retry. Coordinates are rounded to two decimal places before being sent to Open-Meteo for AQI and Apple MapKit for an area name. Only the latest area and forecast are cached locally; no travel history is kept. Revoking permission clears the current-location cache. Saved cities remain usable without location access. Searches and selected coordinates are sent to Open-Meteo; the service also receives your IP address. Saved cities, forecasts, and search results remain in the app's local Application Support directory (`Udara/state-v1.json` inside the sandbox container).
+No account or analytics. Location permission is optional. One-shot GPS fixes are rounded to two decimal places before Apple MapKit reverse geocoding and requests to the Udara backend on Cloudflare. The backend uses DOE or sends requested coordinates to Open-Meteo for model estimates. City searches use Open-Meteo/GeoNames. Services receive the connecting client's IP (the backend connects to forecast providers). Only the latest approximate area is saved, with no travel history; permission revocation clears it. Saved cities and search preferences remain in local sandbox Application Support. Air-quality responses are held in memory.
 
 Opening the dropdown does not start a request. Forecasts become eligible for download after one hour, with up to one minute of randomized delay; the running app checks due work every minute. Server retry deadlines still apply. Existing daily deadlines migrate automatically without clearing saved cities. Current-hour values change locally; old samples are never carried forward. Downloads can retrieve revised forecasts sooner, but values may remain unchanged between provider model runs. Search queries use a 400 ms debounce and 30-day cache. Errors preserve successful forecasts and persist retry deadlines. Unsupported/corrupt saved files are preserved; the app opens a temporary in-memory session with a visible warning rather than overwriting them.
 
@@ -68,7 +68,7 @@ Update with `brew update && brew upgrade --cask udara`. Requires macOS 26 or lat
 
 ## Backend
 
-The [Hono backend](hono/README.md) provides DOE-first Malaysia observations with Open-Meteo fallback for Cloudflare Workers. It has independent dependencies, tests, local secrets and deployment configuration. The 1.5.0 development app connects to this backend. The published 1.4.0 app still uses Open-Meteo.
+The [Hono backend](hono/README.md) provides DOE-first Malaysia observations with Open-Meteo fallback for Cloudflare Workers. It has independent dependencies, tests, local secrets and deployment configuration. Version 1.5.1 connects to this backend. AQICN was removed after the 1.5.0 release.
 
 ### App API configuration
 
@@ -83,6 +83,6 @@ Keep the backend running with `cd hono && bun run dev`. From the repository root
 
 Build/test/release scripts generate ignored `Config/API.local.xcconfig` containing only URLs. For direct Xcode builds, run `python3 scripts/configure-api.py Debug` after editing `.env`, then build the shared Udara scheme. Xcode does not load `.env` at runtime; rebuild after changing URLs. Development permits HTTP only on localhost/loopback. Release requires `UDARA_API_URL_PRODUCTION` set to a deployed HTTPS endpoint; it never falls back to the development URL. The production backend is deployed at https://udara.exnano.io, with a five-minute DOE dataset cache at each Cloudflare edge location. Open-Meteo responses remain uncached.
 
-City search continues to use Open-Meteo geocoding. Existing city names resolve country codes where possible; unidentified legacy cities should be removed and added again. Backend requests include `metric=pm25` so missing DOE PM2.5 triggers Open-Meteo fallback. Observations stay in memory, expire two hours after observation, and are checked every ten minutes (plus scheduling jitter). Saved cities/preferences remain on disk. Station data is never used as a forecast or relabeled across index systems.
+City search continues to use Open-Meteo geocoding. Existing city names resolve country codes where possible; unidentified legacy cities should be removed and added again. Backend requests include `metric=pm25` so missing DOE PM2.5 triggers Open-Meteo fallback. Readings stay in memory and are checked every ten minutes (plus scheduling jitter). DOE observations expire after two hours; model estimates expire at the next UTC hour. Saved cities/preferences remain on disk. Station data is never used as a forecast or relabeled across index systems.
 
-The backend uses DOE in Malaysia with Open-Meteo fallback, and Open-Meteo directly outside Malaysia. The GPS row scrolls with saved locations; rows display observation age, not download age.
+The backend uses DOE in Malaysia with Open-Meteo fallback, and Open-Meteo directly outside Malaysia. The GPS row scrolls with saved locations; rows display DOE observation age or model forecast validity, not download age.

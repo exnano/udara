@@ -203,3 +203,14 @@ The complete local suite passed before publishing to `exnano/udara`: 33 core tes
 - Published https://github.com/exnano/udara/releases/tag/v1.5.0 with DMG and SHA256SUMS. Cask generation re-downloaded and verified the public asset. Homebrew style and online audit passed.
 - Tap commit `9fccf9c98561a1587047d9fdeff5abcdafc060a7` pushed to exnano/homebrew-tap; local/upstream match verified. Homebrew successfully upgraded this Mac from 1.4.0 to 1.5.0. Installed signature, staple and Gatekeeper checks passed; bundled API is `https://udara.exnano.io`.
 - Security report remains active: publication does not close its open findings. Clean-Mac offline acceptance and complete OS/CPU runtime matrix remain unverified.
+
+
+## DOE / Open-Meteo correction — published 1.5.1 (8)
+
+- Source/tag `3f15997fbf980335683696b173c375430c20826e`, `v1.5.1`, pushed. Backend deployed from this committed revision, initial Worker version `5119f37e-63e4-4e1b-9222-c8f18dda66b5`; obsolete WAQI secret then deleted. Worker secret listing verified empty.
+- Production probes returned DOE Malaysian PM2.5 API 153 for Shah Alam and Open-Meteo estimated US AQI 82 for Singapore. Actual compiled Swift provider decoded the production estimate. Values are timestamped snapshots, not accuracy claims.
+- 32 backend tests, TypeScript/dry-run checks, 43 Swift core tests (SwiftPM and native Xcode), 26 Python tooling tests and 3 UI tests passed. Tests cover fallback, absent/invalid PM2.5, current-hour selection and client expiry, and AQICN rejection.
+- Universal archive/export, app and DMG notarization/stapling, mounted artifact signatures, architecture and Gatekeeper checks passed. Release Info.plist verified the production URL and updated location disclosure.
+- Published https://github.com/exnano/udara/releases/tag/v1.5.1. SHA-256: `455c348d88026c91f142f05ff6310c686eeadc0a99184f008e5aa9af38525df8`. Public asset checksum reverified by cask generator. Homebrew style/online audit passed.
+- Tap commit `3d5370681fe2c3e6b986a727ef30d49a67424ac0` pushed and matched upstream. Homebrew upgraded this Mac from 1.5.0 to 1.5.1; installed signature, staple and Gatekeeper checks passed.
+- Reviewed all active plans: WAQI proposal archived as cancelled, not falsely marked implemented. The core app plan retains external acceptance checks (macOS 26/Intel, clean/offline environment, real location permission, isolated uninstall/zap). No user data was deleted to simulate these tests. Security report remains active.
