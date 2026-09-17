@@ -13,3 +13,5 @@ Config/Release.local.xcconfig
 
 __pycache__/
 *.pyc
+
+Config/API.local.xcconfig

@@ -70,7 +70,7 @@ The bump command updates only the version config, preserving comments and replac
    git push origin "$release_tag"
    ```
 
-5. Follow [RELEASING.md](RELEASING.md) to sign/notarize and create the draft. The scripts derive version/build from the checked-out config. The GitHub workflow asks only for the app version to choose the existing tag; its build number comes from that tag's config.
+5. Follow [RELEASING.md](RELEASING.md) to sign/notarize and create the draft. The scripts derive version/build from the checked-out config. Build and notarize locally, then upload and publish manually; GitHub Actions is not used.
 6. Publish only after acceptance, then generate/update the Homebrew cask from the same release checkout.
 
 `RELEASE_VERSION` and `BUILD_NUMBER`, if already present in the environment, are checked as assertions and must match the config. Unset stale values with `unset RELEASE_VERSION BUILD_NUMBER`. They cannot override the source of truth. Build scripts verify the resulting Info.plist, and the signing script verifies the exported app again before notarization.

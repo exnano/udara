@@ -63,7 +63,7 @@ Acceptance cases: category boundaries and rounding, invalid data, sorting/ties, 
 - [x] Sandbox/network entitlement, Hardened Runtime, universal Release configuration.
 - [x] Required production identity/configuration preflight; no credentials in source.
 - [x] Archive/export → app ZIP notarization → staple app → signed DMG → notarize/staple DMG → mount/verify → checksum.
-- [x] Unsigned/ad-hoc CI and protected signed-candidate workflow with temporary credential cleanup.
+- [x] Local build/test/sign/notarize pipeline with manual GitHub and Homebrew publication. GitHub Actions workflows removed by user decision on 17 September 2026.
 - [x] Draft GitHub release helper, reviewed notes file and immutable versioned assets.
 - [x] Homebrew cask generator requiring a public stable release and matching checksum.
 - [ ] Supply actual Developer ID credentials, production bundle ID, GitHub repository and tap ownership.

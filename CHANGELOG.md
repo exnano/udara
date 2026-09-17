@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.5.0 (7) — 2026-09-17
+
+- Remove GitHub Actions builds; use local testing, notarization and manual release publication.
+
+- Refresh About with Exnano branding, version, source/freshness explanations, privacy details and support links.
+
+- Use DOE first in Malaysia and AQICN elsewhere or when DOE is unavailable.
+- Scroll the GPS row together with saved cities and omit download-age text.
+
+- Connect the Mac app to the Udara backend with separate development and production API URLs from ignored `.env`.
+- Display station PM2.5 indices with source scale, observation age, distance and agency attribution; retain readings in memory only.
+- Prefer current location in the menu bar and group saved readings by scale.
+- Require a configured HTTPS backend before building a distribution release.
+
 ## 1.4.0 (6) — 2026-09-16
 
 - Use the supplied Udara Icon Composer artwork as the application icon.

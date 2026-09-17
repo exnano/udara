@@ -6,6 +6,7 @@ if [[ "${UDARA_ENV_LOADED:-}" != "$PWD" ]]; then
     exec python3 scripts/release_env.py -- /bin/bash scripts/release.sh "$@"
 fi
 python3 scripts/version.py check
+python3 scripts/configure-api.py Release
 export RELEASE_VERSION="$(python3 scripts/version.py show --field version)"
 export BUILD_NUMBER="$(python3 scripts/version.py show --field build)"
 for variable in UDARA_BUNDLE_ID APPLE_TEAM_ID SIGNING_IDENTITY NOTARY_PROFILE GITHUB_REPOSITORY; do

@@ -1,0 +1,3 @@
+#include "Version.xcconfig"
+UDARA_API_URL[config=Debug] = http:/$()/localhost:8787
+#include? "API.local.xcconfig"

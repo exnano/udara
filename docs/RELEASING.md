@@ -32,9 +32,11 @@ UDARA_BUNDLE_ID=io.exnano.udara
 APPLE_TEAM_ID=6G94876K55
 SIGNING_IDENTITY='Developer ID Application: MZR Global Sdn Bhd (6G94876K55)'
 NOTARY_PROFILE=udara-notary
+UDARA_API_URL_DEVELOPMENT=http://localhost:8787
+UDARA_API_URL_PRODUCTION=https://udara.exnano.io
 ```
 
-Then run `./scripts/release.sh` without exporting those variables. Existing exported variables (including empty ones) take precedence, so CI settings remain authoritative. Missing `.env` files are allowed; required release checks still apply. For draft creation, also set `RELEASE_NOTES_FILE` in `.env` or your shell.
+Then run `./scripts/release.sh` without exporting those variables. Existing exported variables (including empty ones) take precedence, so explicit shell settings remain authoritative. Missing `.env` files are allowed; required release checks still apply. For draft creation, also set `RELEASE_NOTES_FILE` in `.env` or your shell.
 
 The format supports `KEY=value`, optional `export`, single/double quotes, blank lines and comments. Quote values containing spaces. Values are literal: no shell commands, variable expansion, escape-sequence expansion or multiline values. Parse errors report a line number without printing its contents. Notarization credentials stay in Keychain; `.env` only needs the profile name.
 
@@ -52,19 +54,26 @@ The script builds/tests, archives a universal Release app, exports Developer ID 
 
 Signature verification uses `codesign --verify`, `spctl --assess`, and `xcrun stapler validate`. Gatekeeper assessment is not a substitute for an actual fresh installation test. The double notarization sequence deliberately staples the app before placing it inside the DMG.
 
-## GitHub Actions
+## Local build, manual publication
 
-`ci.yml` runs core and Xcode tests plus a universal build without distribution credentials. `release.yml` takes the version of an existing tag, validates it against the checked-out config, and derives the build number from that config. It is manually dispatched against that tag and produces a signed candidate artifact; it does not publish a GitHub release or change a tap.
+GitHub Actions workflows are removed. Build, test, sign and notarize on your Mac; GitHub hosts the source and downloadable releases. No GitHub-hosted runner or uploaded signing certificate is required. Keep signing credentials in your local Keychain and `.env` ignored.
 
-Both workflows require a runner with `/Applications/Xcode_27.0.app`; they fail rather than silently using a different compiler. They are configured for `macos-26`. Confirm that the hosted runner image includes this newly released Xcode before enabling CI, or assign an equivalent maintained macOS runner with that installation.
+Before releasing the backend-integrated app, deploy and verify the production API at `https://udara.exnano.io`. Setting its URL does not deploy the backend. Backend deployment remains a separate manual task (`cd hono && bun run check && bun run test && bun run deploy`).
 
-Create a protected `release` environment with variables `UDARA_BUNDLE_ID`, `APPLE_TEAM_ID`, and `SIGNING_IDENTITY`. Add secrets:
+After committing the intended source and creating its matching version tag:
 
-- `CERTIFICATE_BASE64`: base64-encoded Developer ID `.p12`.
-- `CERTIFICATE_PASSWORD`: password for that export.
-- `NOTARY_KEY_BASE64`, `NOTARY_KEY_ID`, `NOTARY_ISSUER_ID`: App Store Connect API key credentials permitted to notarize.
+```sh
+./scripts/release.sh
+# Uses the local tag and runs tests, signing and notarization.
+# Review the resulting DMG before publishing.
+git push origin main
+git push origin "$(python3 scripts/version.py show --field tag)"
+RELEASE_NOTES_FILE=docs/release-notes.md ./scripts/create-draft-release.sh
+# Once the uploaded draft is verified:
+gh release edit "$(python3 scripts/version.py show --field tag)" --repo exnano/udara --draft=false --latest
+```
 
-Signing material is imported into a temporary keychain. Cleanup restores the original keychain list/default and deletes the temporary keychain and private files even when the job fails. Do not run this workflow with signing secrets on untrusted pull-request code. Environment rules should restrict release execution to trusted maintainers/tags.
+Create the release-notes file before committing, or use a reviewed file outside the tracked checkout. `release.sh` requires a clean, tagged tree and derives its version from that source. The draft upload validates the local DMG checksum. Update the Homebrew cask only after the release is public, as described below. None of these steps runs automatically on push.
 
 ## Homebrew
 

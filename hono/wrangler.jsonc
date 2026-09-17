@@ -1,0 +1,16 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "exn-udara",
+  "account_id": "00689e816b41e6ac19e5284d1f2a2413",
+  "routes": [{ "pattern": "udara.exnano.io", "custom_domain": true }],
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-17",
+  "workers_dev": true,
+  // exn-udara.pages.dev requires Pages; Workers use an account-specific workers.dev URL.
+  "observability": { "enabled": false },
+  "vars": {
+    "DOE_RADIUS_KM": "50",
+    "AQICN_RADIUS_KM": "50",
+    "MAX_OBSERVATION_AGE_SECONDS": "7200"
+  }
+}

@@ -10,11 +10,17 @@ import SwiftUI
             return PreviewFixtures.store(empty: ProcessInfo.processInfo.arguments.contains("--empty"))
         }
         #endif
-        let provider = OpenMeteoProvider()
+        #if DEBUG
+        let development = true
+        #else
+        let development = false
+        #endif
+        let provider = BackendProvider(baseURL: BackendProvider.configuredURL(Bundle.main.object(forInfoDictionaryKey: "UdaraAPIBaseURL") as? String, development: development))
+        let search = OpenMeteoProvider()
         do {
-            return AppStore(repository: try ForecastRepository(provider: provider, searchProvider: provider, persistence: DiskPersistence.applicationSupport()))
+            return AppStore(repository: try ForecastRepository(provider: provider, searchProvider: search, persistence: DiskPersistence.applicationSupport()))
         } catch {
-            let repository = try! ForecastRepository(provider: provider, searchProvider: provider, persistence: MemoryPersistence())
+            let repository = try! ForecastRepository(provider: provider, searchProvider: search, persistence: MemoryPersistence())
             let store = AppStore(repository: repository)
             store.startupWarning = "Saved data could not be read and was preserved. Changes in this session will not be saved. \(error.localizedDescription)"
             return store
@@ -30,7 +36,7 @@ import SwiftUI
         } label: {
             Image(nsImage: MenuBarGlyph.image(reading: store.highest, style: store.menuBarIconStyle))
                 .accessibilityIdentifier("udaraMenuBar")
-                .accessibilityLabel(store.highest.map { "Udara, estimated PM2.5 AQI \($0.value), \($0.category.title)" } ?? "Udara, AQI unavailable")
+                .accessibilityLabel(store.highest.map { "Udara, PM2.5 \($0.scaleLabel) \($0.value), \($0.category.title)" } ?? "Udara, AQI unavailable")
         }.menuBarExtraStyle(.window)
     }
 }
@@ -153,7 +159,8 @@ import SwiftUI
             let items = try? await self.request?.mapItems
             guard !Task.isCancelled, self.generation == token else { return }
             let area = items?.first?.addressRepresentations?.cityName
-            let city = SavedCity(id: -1, name: area ?? "Nearby area", region: "", country: "Detected location", latitude: latitude, longitude: longitude, timezone: TimeZone.current.identifier)
+            let countryCode = items?.first?.addressRepresentations?.region?.identifier
+            let city = SavedCity(id: -1, name: area ?? "Nearby area", region: "", country: "Detected location", latitude: latitude, longitude: longitude, timezone: TimeZone.current.identifier, countryCode: countryCode)
             self.timeout?.cancel(); self.timeout = nil
             self.requesting = false; self.geocoding = nil; self.request = nil
             await self.store.updateLocation(city)

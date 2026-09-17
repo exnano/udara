@@ -14,7 +14,7 @@ struct MenuView: View {
                     Image(systemName: "wind").font(.title2).foregroundStyle(.teal)
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Udara").font(.title3.bold())
-                        Text("Estimated PM2.5 AQI").font(.caption).foregroundStyle(.secondary)
+                        Text("PM2.5 · station observations").font(.caption).foregroundStyle(.secondary)
                     }
                     Spacer()
                     if page != .cities {
@@ -37,7 +37,7 @@ struct MenuView: View {
                     Button { page = page == .settings ? .cities : .settings } label: { Image(systemName: "gearshape") }
                         .help("Settings and about").accessibilityLabel("Settings").accessibilityIdentifier("settings").udaraGlassButton()
                     Spacer()
-                    Link("Open-Meteo · CAMS", destination: URL(string: "https://open-meteo.com/en/docs/air-quality-api")!)
+                    Link("Data sources", destination: URL(string: "https://eqms.doe.gov.my/")!)
                         .font(.caption2)
                     Spacer()
                     Button("Quit") { NSApplication.shared.terminate(nil) }.keyboardShortcut("q").udaraGlassButton()
@@ -83,19 +83,19 @@ struct MenuView: View {
     }
     private var cities: some View {
         VStack(spacing: 0) {
-            currentLocation
-            Divider()
-            if store.rows.isEmpty {
-                ContentUnavailableView {
-                    Label("A little clarity, city by city", systemImage: "leaf")
-                } description: {
-                    Text("Keep the air quality of places you care about close at hand.")
-                } actions: {
-                    Button("Add your first city") { page = .search }.udaraGlassButton(prominent: true)
-                }.padding(.vertical, 18)
-            } else {
-                ScrollView {
-                    LazyVStack(spacing: 0) {
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    currentLocation
+                    Divider()
+                    if store.rows.isEmpty {
+                        ContentUnavailableView {
+                            Label("A little clarity, city by city", systemImage: "leaf")
+                        } description: {
+                            Text("Keep the air quality of places you care about close at hand.")
+                        } actions: {
+                            Button("Add your first city") { page = .search }.udaraGlassButton(prominent: true)
+                        }.padding(.vertical, 18)
+                    } else {
                         ForEach(store.rows) { row in
                             CityRowView(status: row, retry: store.state.retries[row.id]) {
                                 Task { await store.remove(row.city) }
@@ -103,14 +103,14 @@ struct MenuView: View {
                             if row.id != store.rows.last?.id { Divider().padding(.horizontal, 16) }
                         }
                     }
-                }.frame(height: min(CGFloat(store.rows.count) * 164, store.currentLocationRow == nil ? 360 : 320))
-            }
+                }
+            }.frame(height: 480).accessibilityIdentifier("locationList")
             if let message = store.startupWarning ?? store.errorMessage {
                 Text(message).font(.caption).foregroundStyle(.red).padding(12).textSelection(.enabled)
             }
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(store.isRefreshing ? "Checking forecasts…" : "PM2.5 estimates · hourly updates")
+                    Text(store.isRefreshing ? "Checking observations…" : "PM2.5 · checks every 10 minutes")
                     if let next = store.nextDownload {
                         Text("Next check \(relativeDate(next, to: store.now))")
                     }
@@ -118,7 +118,7 @@ struct MenuView: View {
                 Spacer(minLength: 4)
                 Button { Task { await store.refresh() } } label: {
                     Image(systemName: "arrow.clockwise")
-                }.disabled(store.isRefreshing).help("Check for due updates; forecasts download hourly with up to one minute of jitter")
+                }.disabled(store.isRefreshing).help("Check for due station updates")
                     .accessibilityLabel("Check for updates").accessibilityIdentifier("refresh").udaraGlassButton()
             }.padding(12)
         }
@@ -140,22 +140,28 @@ struct CityRowView: View {
                 Spacer(minLength: 4)
                 AQIBadge(reading: status.reading)
             }
-            Text(status.reading?.category.title ?? "No estimate for this hour")
+            Text(status.reading?.category.title ?? "No recent PM2.5 reading")
                 .font(.caption.weight(.medium))
             HStack(alignment: .bottom, spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
-                    if let concentration = status.forecast?.sample(at: status.now)?.pm25Concentration {
-                        Text("PM2.5 \(concentration, format: .number.precision(.fractionLength(1))) µg/m³ · hourly estimate")
+                    if let observation = status.forecast?.observation {
+                        Text("\(observation.sourceLabel) · \(status.reading?.scaleLabel ?? observation.index.scale)")
+                        Text("\(observation.station.name) · \(observation.station.distanceKm, format: .number.precision(.fractionLength(1))) km away")
+                        Text("Observed \(relativeDate(observation.observedAt, to: status.now))")
+                            .help(observation.observedAt.formatted(date: .abbreviated, time: .shortened))
+                        if let concentration = observation.pm2524hConcentration {
+                            Text("PM2.5 \(concentration.value, format: .number.precision(.fractionLength(1))) µg/m³ · 24-hour mean")
+                        }
+                        ForEach(observation.attribution.indices, id: \.self) { index in
+                            Link(observation.attribution[index].name, destination: observation.attribution[index].url)
+                        }
+                    } else if status.reading != nil {
+                        Text("Preview estimate · \(hourLabel) · \(timezoneLabel)")
                     }
-                    if status.reading != nil {
-                        Text("Forecast for \(hourLabel) · \(timezoneLabel)")
-                    }
-                    if let forecast = status.forecast {
-                        Text(forecast.fetchedAt > status.now ? "Download time is ahead of the system clock" : "Downloaded \(relativeDate(forecast.fetchedAt, to: status.now))")
-                    }
-                    if status.overdue { Text("Cached forecast · update overdue").foregroundStyle(.orange) }
+                    if status.overdue { Text("Update overdue").foregroundStyle(.orange) }
                     if let retry { Text(retry.message).foregroundStyle(.secondary) }
                 }.font(.caption2).foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 if removable {
                     Menu {

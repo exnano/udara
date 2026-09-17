@@ -9,7 +9,7 @@ import XCTest
         app.activate()
         XCTAssertTrue(app.staticTexts["A little clarity, city by city"].waitForExistence(timeout: 10))
         XCTAssertTrue(app.staticTexts["Current location"].exists)
-        XCTAssertTrue(app.staticTexts["Estimated PM2.5 AQI"].exists)
+        XCTAssertTrue(app.staticTexts["PM2.5 · station observations"].exists)
         XCTAssertTrue(app.buttons["Enable location"].exists)
         app.buttons["Add your first city"].click()
         let search = app.textFields["citySearch"]
@@ -22,7 +22,7 @@ import XCTest
         XCTAssertTrue(app.staticTexts["Kuala Lumpur"].waitForExistence(timeout: 3))
         app.buttons["settings"].click()
         XCTAssertTrue(app.staticTexts["Air quality, quietly close"].waitForExistence(timeout: 3))
-        XCTAssertTrue(app.staticTexts["Every hour"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Every 10 minutes"].waitForExistence(timeout: 3))
     }
     func testMenuBarOptions() throws {
         let app = XCUIApplication()

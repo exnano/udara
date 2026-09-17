@@ -46,36 +46,64 @@ struct CitySearchView: View {
 
 struct SettingsContent: View {
     @Bindable var store: AppStore
+    private var version: String {
+        let info = Bundle.main.infoDictionary ?? [:]
+        return "Version \(info["CFBundleShortVersionString"] as? String ?? "—") (\(info["CFBundleVersion"] as? String ?? "—"))"
+    }
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                Label("Air quality, quietly close", systemImage: "wind").font(.headline)
-                Text("Udara shows model-estimated PM2.5 AQI. PM2.5 AQI uses a preceding 24-hour average; the concentration shown is an hourly estimate. Model forecasts may differ from nearby monitoring stations.")
-                    .fixedSize(horizontal: false, vertical: true)
-                Picker("Menu bar icon", selection: Binding(
-                    get: { store.menuBarIconStyle },
-                    set: { style in Task { await store.setMenuBarIconStyle(style) } }
-                )) {
-                    ForEach(MenuBarIconStyle.allCases, id: \.self) { style in
-                        Text(style.title).tag(style)
-                    }
-                }.pickerStyle(.segmented).accessibilityIdentifier("menuBarIconStyle")
-                Text("The number shows the highest available PM2.5 AQI across your current location and saved cities.")
-                    .fixedSize(horizontal: false, vertical: true)
-                    .foregroundStyle(.secondary)
-                LabeledContent("Downloads", value: "Every hour")
-                LabeledContent("Display", value: "PM2.5 AQI · US scale")
-                Text("Cities and forecasts stay on this Mac. City searches and coordinates are sent to Open-Meteo; its servers receive your IP address. Current location is optional and needs macOS permission. Approximate coordinates also go to Apple to find the area name. Saved cities work without location access.")
-                    .fixedSize(horizontal: false, vertical: true)
-                Text("Data: Open-Meteo and CAMS ENSEMBLE / CAMS global forecasts, under the applicable attribution licences. Udara rounds AQI to whole numbers.")
-                    .fixedSize(horizontal: false, vertical: true)
-                Link("Data sources and attribution", destination: URL(string: "https://open-meteo.com/en/docs/air-quality-api")!)
-                Link("Open-Meteo terms and licence", destination: URL(string: "https://open-meteo.com/en/terms")!)
-                Text("Free, non-commercial use. Updates are installed through Homebrew or a replacement DMG from GitHub Releases.")
-                    .fixedSize(horizontal: false, vertical: true)
-                Text("Udara \(Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—") (\(Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "—"))")
-                    .fixedSize(horizontal: false, vertical: true)
-                    .foregroundStyle(.secondary)
+            VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 5) {
+                    Label("Air quality, quietly close", systemImage: "wind").font(.headline)
+                    Text("Udara by Exnano").font(.subheadline.weight(.medium))
+                    Text(version).foregroundStyle(.secondary)
+                    paragraph("PM2.5 air quality from monitoring stations, close at hand in your menu bar.")
+                }
+
+                Divider()
+                VStack(alignment: .leading, spacing: 10) {
+                    Text("Menu bar").font(.subheadline.bold())
+                    Picker("Menu bar icon", selection: Binding(
+                        get: { store.menuBarIconStyle },
+                        set: { style in Task { await store.setMenuBarIconStyle(style) } }
+                    )) {
+                        ForEach(MenuBarIconStyle.allCases, id: \.self) { style in
+                            Text(style.title).tag(style)
+                        }
+                    }.pickerStyle(.segmented).accessibilityIdentifier("menuBarIconStyle")
+                    paragraph("Shows your current location when a reading is available. Otherwise, shows the highest available category severity among your saved cities.")
+                    LabeledContent("Update checks", value: "Every 10 minutes")
+                }
+
+                Divider()
+                aboutSection("Readings and freshness") {
+                    paragraph("DOE Malaysia is the preferred source for Malaysian locations. AQICN provides readings elsewhere and is the fallback when DOE has no usable nearby reading.")
+                    paragraph("Values are PM2.5 indices, labeled with their source scale. Malaysian API and AQICN indices are not directly interchangeable; saved cities are grouped by scale and sorted from high to low within each group.")
+                    paragraph("Observed time tells you when the station reported the reading. Checking for updates does not guarantee a new observation. Readings older than two hours, or without PM2.5 data, are shown as unavailable.")
+                    paragraph("Where supplied by DOE, PM2.5 concentration is shown separately in µg/m³ as a 24-hour mean. A nearby station may not reflect conditions at your exact location.")
+                }
+
+                Divider()
+                aboutSection("Privacy") {
+                    paragraph("Saved cities and preferences stay on this Mac. Station readings are held in memory. City searches go to Open-Meteo; coordinates and country go to the Udara backend to retrieve readings from DOE or AQICN.")
+                    paragraph("GPS location is optional and requires macOS permission. Approximate coordinates are sent to Apple to resolve your area and country. You can use saved cities without enabling location access.")
+                }
+
+                Divider()
+                aboutSection("Data and attribution") {
+                    paragraph("Station rows link to their originating data agencies. Air-quality data is provided by DOE Malaysia, the World Air Quality Index Project and its contributing agencies.")
+                    Link("Department of Environment Malaysia", destination: URL(string: "https://eqms.doe.gov.my/")!)
+                    Link("World Air Quality Index Project · API terms", destination: URL(string: "https://aqicn.org/api/")!)
+                    Link("Open-Meteo · city search", destination: URL(string: "https://open-meteo.com/en/docs/geocoding-api")!)
+                }
+
+                Divider()
+                aboutSection("Updates and support") {
+                    paragraph("Udara is free for non-commercial use. Install updates through Homebrew or download a replacement DMG from GitHub Releases.")
+                    Link("Releases", destination: URL(string: "https://github.com/exnano/udara/releases")!)
+                    Link("Report an issue", destination: URL(string: "https://github.com/exnano/udara/issues")!)
+                    Link("Source code", destination: URL(string: "https://github.com/exnano/udara")!)
+                }
             }
             .font(.caption)
             .lineLimit(nil)
@@ -83,5 +111,15 @@ struct SettingsContent: View {
             .padding(16)
         }
         .frame(width: 360, height: 480)
+    }
+    private func paragraph(_ text: String) -> some View {
+        Text(text).foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+    private func aboutSection<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title).font(.subheadline.bold())
+            content()
+        }
     }
 }

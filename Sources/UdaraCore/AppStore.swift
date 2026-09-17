@@ -59,7 +59,17 @@ import Observation
         do { try await repository.setMenuBarIconStyle(style); await load() }
         catch { errorMessage = error.localizedDescription }
     }
-    var highest: AQIReading? { (rows.compactMap(\.reading) + [currentLocationRow?.reading].compactMap { $0 }).max { $0.value < $1.value } }
+    // Prefer the pinned local reading; otherwise the highest category severity.
+    // Compare raw numbers only within the same index system.
+    var highest: AQIReading? {
+        if let local = currentLocationRow?.reading { return local }
+        return rows.compactMap(\.reading).max {
+            let left = AQICategory.allCases.firstIndex(of: $0.category) ?? 0
+            let right = AQICategory.allCases.firstIndex(of: $1.category) ?? 0
+            if left != right { return left < right }
+            return $0.scale == $1.scale ? $0.value < $1.value : $0.scale < $1.scale
+        }
+    }
     var nextDownload: Date? {
         (state.cities + (currentLocationRow.map { [$0.city] } ?? [])).compactMap { city in
             if let retry = state.retries[city.id] { return retry.nextAttempt }

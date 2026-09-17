@@ -18,14 +18,14 @@ actor ForecastRepository {
         self.provider = provider; self.searchProvider = searchProvider; self.persistence = persistence
         self.clock = clock; self.jitter = jitter
         state = try persistence.load() ?? RepositorySnapshot()
-        let incompatible = state.forecasts.filter { $0.value.metric != "us_aqi_pm2_5" }.map(\.key)
+        let incompatible = state.forecasts.filter { $0.value.metric != provider.cacheMetric }.map(\.key)
         for id in incompatible {
             state.forecasts[id] = nil
             state.scheduled[id] = nil
         }
         // Normalize legacy daily deadlines without clearing forecasts, cities or server cooldowns.
         for (id, forecast) in state.forecasts {
-            let earliest = forecast.fetchedAt.addingTimeInterval(ForecastRefreshPolicy.interval)
+            let earliest = forecast.fetchedAt.addingTimeInterval(forecast.refreshInterval)
             let latest = earliest.addingTimeInterval(ForecastRefreshPolicy.maximumJitter)
             state.scheduled[id] = min(latest, max(earliest, state.scheduled[id] ?? earliest))
         }
@@ -34,7 +34,7 @@ actor ForecastRepository {
     func setMenuBarIconStyle(_ style: MenuBarIconStyle) throws {
         var next = state
         next.menuBarIconStyle = style
-        try persistence.save(next)
+        try save(next)
         state = next
     }
     private var activeCities: [SavedCity] {
@@ -60,10 +60,10 @@ actor ForecastRepository {
         if city == nil {
             suspendCurrentLocation()
             state = next
-            try persistence.save(next)
+            try save(next)
             return
         }
-        try persistence.save(next)
+        try save(next)
         state = next
         locationEnabled = true
         if moved || city == nil {
@@ -75,14 +75,14 @@ actor ForecastRepository {
     func add(_ city: SavedCity) throws {
         guard !state.cities.contains(where: { $0.id == city.id }) else { return }
         var next = state; next.cities.append(city)
-        try persistence.save(next); state = next
+        try save(next); state = next
         generations[city.id] = UUID()
     }
     func remove(_ id: Int) throws {
         var next = state
         next.cities.removeAll { $0.id == id }
         next.forecasts[id] = nil; next.retries[id] = nil; next.scheduled[id] = nil
-        try persistence.save(next); state = next
+        try save(next); state = next
         generations[id] = UUID()
         inFlight.removeValue(forKey: id)?.cancel()
     }
@@ -100,7 +100,7 @@ actor ForecastRepository {
         if let retry = state.retries[city.id], retry.nextAttempt > now { return }
         if let forecast = state.forecasts[city.id] {
             // On clock rollback, wait for the original deadline rather than causing a request burst.
-            let deadline = state.scheduled[city.id] ?? forecast.fetchedAt.addingTimeInterval(ForecastRefreshPolicy.interval)
+            let deadline = state.scheduled[city.id] ?? forecast.fetchedAt.addingTimeInterval(forecast.refreshInterval)
             if deadline > now { return }
         }
         let generation = generations[city.id] ?? UUID()
@@ -114,7 +114,7 @@ actor ForecastRepository {
         switch result {
         case .success(let forecast):
             state.forecasts[city.id] = forecast
-            state.scheduled[city.id] = forecast.fetchedAt.addingTimeInterval(ForecastRefreshPolicy.interval + boundedJitter())
+            state.scheduled[city.id] = forecast.fetchedAt.addingTimeInterval(forecast.refreshInterval + boundedJitter())
             state.retries[city.id] = nil
         case .failure(let error):
             guard !(error is CancellationError) else { return }
@@ -162,8 +162,17 @@ actor ForecastRepository {
         }
         return RetryState(failures: failures, nextAttempt: clock.now.addingTimeInterval(delay), message: error.localizedDescription)
     }
+    private func save(_ snapshot: RepositorySnapshot) throws {
+        var saved = snapshot
+        // Station responses are no-store. Keep them only in this running session.
+        for (id, forecast) in saved.forecasts where forecast.observation != nil {
+            saved.forecasts[id] = nil
+            saved.scheduled[id] = nil
+        }
+        try persistence.save(saved)
+    }
     private func persist() {
-        do { try persistence.save(state); persistenceWarning = nil }
+        do { try save(state); persistenceWarning = nil }
         catch { persistenceWarning = "Could not save the cache: \(error.localizedDescription)" }
     }
 }

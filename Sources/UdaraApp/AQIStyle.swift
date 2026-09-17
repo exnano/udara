@@ -27,7 +27,7 @@ struct AQIBadge: View {
         .foregroundStyle(reading?.category.foreground ?? .secondary)
         .background(reading?.category.color ?? Color.secondary.opacity(0.12), in: RoundedRectangle(cornerRadius: 10))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(reading.map { "Estimated PM2.5 AQI \($0.value), \($0.category.title)" } ?? "AQI unavailable")
+        .accessibilityLabel(reading.map { "PM2.5 \($0.scaleLabel) \($0.value), \($0.category.title)" } ?? "AQI unavailable")
     }
 }
 

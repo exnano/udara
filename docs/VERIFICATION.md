@@ -151,3 +151,45 @@ The complete local suite passed before publishing to `exnano/udara`: 33 core tes
 
 - Added `Udara.icon` to the app resource build phase and set the primary app icon name to `Udara` for Debug and Release, replacing the legacy ICNS reference.
 - Debug and universal Release builds passed. Release Info.plist names `Udara` for both icon keys; compiled `Udara.icns` and `Assets.car` are present. Visually inspected the generated Debug icon PNG.
+
+## Backend app integration — 1.5.0 (7), unreleased
+
+- `.env` selects development/production URLs through generated ignored Xcode settings. Debug bundle Info.plist verified as `http://localhost:8787`; no production URL configured.
+- Station observations use provider-specific categories and PM2.5 sub-indices, explicit source attribution, station distance and actual observation age. Current location stays pinned; menu bar prefers it; saved readings group by scale and sort descending within a scale.
+- Old forecast cache is invalidated when the backend provider loads; cities/preferences remain. Station responses are retained only in memory and expire after two hours. Due downloads use a ten-minute interval.
+- 42 Swift tests, 26 Python tooling tests, 3 UI workflows and 30 backend tests passed. First UI attempt missed the initial onboarding click; the complete rerun passed: `build/BackendIntegrationRetryTests.xcresult`.
+- Debug app built successfully with the final Info.plist template. Inspected the station preview screenshot for wrapped metadata and attribution.
+- Compiled Swift provider exercised the actual local backend: Shah Alam returned DOE Malaysian PM2.5 API 153. This is a live snapshot, not a station-accuracy claim.
+- Wrangler dry-run build passed. Production release remains intentionally blocked until an HTTPS backend URL is supplied; nothing is deployed or published for 1.5.0.
+
+## DOE-only backend revision
+
+- Removed AQICN provider, fallback requests, radius setting and token binding. Removed its local backend token entry without displaying it. Historical assessment tools and root credentials are preserved.
+- Local runtime: Shah Alam returns 200 with source `doe`; Singapore returns 422 `unsupported_country`. Backend tests verify no fallback network calls on missing PM2.5, stale data or upstream failures.
+- Backend TypeScript checks, 24 tests and Wrangler dry-run build passed.
+- All 42 Swift core tests and the Debug build passed. Relaunched the local Debug app with DOE-only source validation and messaging. No production deployment or release performed.
+
+## AQICN restoration and scrolling correction
+
+- Restored AQICN for non-Malaysian locations and DOE failures, with server-side token and no AQICN caching. Local runtime verified Malaysia 200/DOE and Singapore 200/AQICN after restarting Wrangler to reload secrets.
+- GPS remains the first item but now shares the saved-city scroll view. Removed download-age text while retaining observation age. Inspected the light preview.
+- Backend check/build and 26 tests passed; 42 Swift tests, 26 tooling tests and all 3 UI tests passed (`build/RestoredFallbackTests.xcresult`). No deployment or publication performed.
+
+## Local-only release workflow
+
+- Removed GitHub Actions workflow files and disabled both remote workflows (`Build and test`, `Signed release candidate`) on exnano/udara. Earlier hosted-CI notes above are historical.
+- Updated release/versioning documentation for local build, tests, signing, notarization, draft upload and manual GitHub/Homebrew publication. No signing secrets need to be uploaded to GitHub.
+- Shell syntax and all 26 release-tooling tests passed. Source changes remain local; workflow disablement is already effective remotely.
+
+
+## Production backend deployment — 2026-09-17
+
+- Deployed `exn-udara` to the Exnano Creative Cloudflare account with custom domain `https://udara.exnano.io` and fallback `https://exn-udara.exnano-creative.workers.dev`. Worker version: `f395a8d5-7fce-4fa3-acb8-38511879e029`.
+- Installed WAQI token as a Worker secret without printing or committing it. No app release or Homebrew update was performed.
+- Added a shared five-minute DOE dataset cache with envelope expiry validation, independent observation freshness checks, cache diagnostics and Worker timing. Coverage misses reuse the dataset; invalid payloads are not cached; cache write errors do not discard usable observations. AQICN stays uncached.
+- TypeScript check, 29 backend tests and Wrangler dry-run build passed before deployment.
+- Live Singapore-edge snapshot at 03:57–03:58 UTC: Shah Alam returned HTTP 200, source DOE, Malaysian PM2.5 API 153. Cold MISS took 2.746 seconds total (2,658 ms Worker); warm HIT took 0.252 seconds total (63 ms Worker), dataset age 12 seconds. These are individual measurements, not a global latency guarantee.
+- Singapore returned HTTP 200, source AQICN, PM2.5 AQI 163 with `BYPASS`, in 0.360 seconds total. Both health hostnames returned HTTP 200.
+- Compiled the actual Swift `BackendProvider` against the production HTTPS URL and verified it decoded Shah Alam DOE PM2.5 API 153 successfully.
+- Python urllib's default client received Cloudflare error 1010 (browser-signature access denial). Curl and the actual Swift client succeeded; zone security settings were not weakened. Generic scripted clients may require separate investigation if supported later.
+- The existing public 1.4.0 Mac app still uses Open-Meteo; this deployment serves the unreleased 1.5.0 backend integration.

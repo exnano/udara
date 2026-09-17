@@ -116,3 +116,68 @@ struct PM25PayloadTests {
         #expect(restored.sample(at: now.addingTimeInterval(7200))?.pm25Concentration == 0)
     }
 }
+
+struct BackendTests {
+    let now = Date(timeIntervalSince1970: 1_789_606_800) // 2026-09-17T00:00Z
+    func payload(source: String = "doe", pm25: Bool = true) throws -> Data {
+        let scale = source == "doe" ? "MY_API" : "AQICN_AQI"
+        let formatter = ISO8601DateFormatter()
+        return try JSONSerialization.data(withJSONObject: ["schema_version": 1, "observation": [
+            "source": source, "index": ["value": 140, "scale": scale, "metric": "overall"],
+            "pm25_index": pm25 ? ["value": 120, "scale": scale, "metric": "pm25"] : NSNull(),
+            "pm25_24h_concentration": NSNull(),
+            "station": ["id": "test", "name": "Test station", "latitude": 3.1, "longitude": 101.5, "distance_km": 3.2],
+            "observed_at": formatter.string(from: now.addingTimeInterval(-1800)),
+            "fetched_at": formatter.string(from: now),
+            "attribution": [["name": "DOE Malaysia", "url": "https://eqms.doe.gov.my/"]]
+        ]])
+    }
+    @Test func stationDecodingAndExpiry() throws {
+        let result = try BackendProvider.decode(payload(), now: now)
+        #expect(result.reading(at: now)?.value == 120)
+        #expect(result.reading(at: now)?.category == .unhealthy)
+        #expect(result.observation?.station.distanceKm == 3.2)
+        #expect(result.reading(at: now.addingTimeInterval(3600))?.value == 120)
+        #expect(result.reading(at: now.addingTimeInterval(7200)) == nil)
+        #expect(result.reading(at: now.addingTimeInterval(-3600)) == nil)
+        #expect(result.refreshInterval == 600)
+        #expect(throws: (any Error).self) { try BackendProvider.decode(payload(), now: now.addingTimeInterval(7200)) }
+    }
+    @Test func missingPM25DoesNotUseOverallAndScalesStayDistinct() throws {
+        #expect(try BackendProvider.decode(payload(pm25: false), now: now).reading(at: now) == nil)
+        #expect(try BackendProvider.decode(payload(source: "aqicn"), now: now).reading(at: now)?.category == .sensitive)
+    }
+    @Test func urlConfiguration() {
+        #expect(BackendProvider.configuredURL("http://localhost:8787", development: true) != nil)
+        #expect(BackendProvider.configuredURL("http://localhost:8787", development: false) == nil)
+        #expect(BackendProvider.configuredURL("http://example.com", development: true) == nil)
+        #expect(BackendProvider.configuredURL("https://user:pass@example.com", development: false) == nil)
+        #expect(BackendProvider.configuredURL("https://example.com?token=secret", development: false) == nil)
+    }
+    @Test func legacyCountryAndObservationPersistence() async throws {
+        let saved = SavedCity(id: 1, name: "Shah Alam", region: "Selangor", country: "Malaysia", latitude: 3.1, longitude: 101.5, timezone: "Asia/Kuala_Lumpur")
+        #expect(saved.resolvedCountryCode == "MY")
+        let reading = try BackendProvider.decode(payload(), now: now)
+        let persistence = MemoryPersistence()
+        let repository = try ForecastRepository(provider: StationStub(result: reading), persistence: persistence, clock: FixedClock(now: now), jitter: { 0 })
+        try await repository.add(saved)
+        let state = await repository.refreshDue()
+        #expect(state.forecasts[1]?.reading(at: now)?.value == 120)
+        #expect(state.scheduled[1] == now.addingTimeInterval(600))
+        #expect(try persistence.load()?.forecasts.isEmpty == true)
+        #expect(try persistence.load()?.cities.count == 1)
+    }
+    @Test func stationProviderClearsOldForecastsPreservesCities() async throws {
+        let persistence = MemoryPersistence()
+        try persistence.save(RepositorySnapshot(cities: [city()], forecasts: [1: CityForecast(fetchedAt: now, samples: [])]))
+        let repository = try ForecastRepository(provider: StationStub(result: BackendProvider.decode(payload(), now: now)), persistence: persistence)
+        let state = await repository.snapshot()
+        #expect(state.forecasts.isEmpty)
+        #expect(state.cities.count == 1)
+    }
+}
+private struct StationStub: AirQualityProvider {
+    let result: CityForecast
+    var cacheMetric: String { "station_pm25_v1" }
+    func forecast(for city: SavedCity) async throws -> CityForecast { result }
+}

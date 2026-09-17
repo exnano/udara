@@ -78,13 +78,13 @@ struct OpenMeteoProvider: CitySearchProvider, AirQualityProvider {
         struct Response: Decodable {
             struct City: Decodable {
                 let id: Int; let name: String; let latitude: Double; let longitude: Double
-                let admin1: String?; let country: String?; let timezone: String?
+                let admin1: String?; let country: String?; let timezone: String?; let country_code: String?
             }
             let results: [City]?
         }
         return try JSONDecoder().decode(Response.self, from: data).results?.compactMap {
             guard (-90...90).contains($0.latitude), (-180...180).contains($0.longitude) else { return nil }
-            return SavedCity(id: $0.id, name: $0.name, region: $0.admin1 ?? "", country: $0.country ?? "", latitude: $0.latitude, longitude: $0.longitude, timezone: $0.timezone ?? "GMT")
+            return SavedCity(id: $0.id, name: $0.name, region: $0.admin1 ?? "", country: $0.country ?? "", latitude: $0.latitude, longitude: $0.longitude, timezone: $0.timezone ?? "GMT", countryCode: $0.country_code)
         } ?? []
     }
     private func request(host: String, path: String, items: [String: String]) async throws -> Data {
