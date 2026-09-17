@@ -193,3 +193,13 @@ The complete local suite passed before publishing to `exnano/udara`: 33 core tes
 - Compiled the actual Swift `BackendProvider` against the production HTTPS URL and verified it decoded Shah Alam DOE PM2.5 API 153 successfully.
 - Python urllib's default client received Cloudflare error 1010 (browser-signature access denial). Curl and the actual Swift client succeeded; zone security settings were not weakened. Generic scripted clients may require separate investigation if supported later.
 - The existing public 1.4.0 Mac app still uses Open-Meteo; this deployment serves the unreleased 1.5.0 backend integration.
+
+
+## Published 1.5.0 (7) — 17 September 2026
+
+- Release source/tag: `ad17fcf57758bac567344c8f202c41350388dd58`, `v1.5.0`, pushed to exnano/udara. Both GitHub workflow files removed; repository Actions disabled.
+- Local Release build, 42 Swift core tests (SwiftPM and native Xcode), 26 Python tooling tests, 3 UI tests and 29 backend tests passed. Universal archive/export succeeded.
+- App and DMG notarization accepted, tickets stapled, strict signatures/Gatekeeper and mounted app checks passed. Final DMG SHA-256: `8572fd048dd0332b2bfdd4db7ef5f4152d43dcd8f2a852bd4e5b77f25ba52281`.
+- Published https://github.com/exnano/udara/releases/tag/v1.5.0 with DMG and SHA256SUMS. Cask generation re-downloaded and verified the public asset. Homebrew style and online audit passed.
+- Tap commit `9fccf9c98561a1587047d9fdeff5abcdafc060a7` pushed to exnano/homebrew-tap; local/upstream match verified. Homebrew successfully upgraded this Mac from 1.4.0 to 1.5.0. Installed signature, staple and Gatekeeper checks passed; bundled API is `https://udara.exnano.io`.
+- Security report remains active: publication does not close its open findings. Clean-Mac offline acceptance and complete OS/CPU runtime matrix remain unverified.
