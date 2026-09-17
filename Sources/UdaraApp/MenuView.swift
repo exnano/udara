@@ -147,7 +147,7 @@ struct CityRowView: View {
                     if let observation = status.forecast?.observation {
                         Text("\(observation.sourceLabel) · \(status.reading?.scaleLabel ?? observation.index.scale)")
                         Text("\(observation.station.name) · \(observation.station.distanceKm, format: .number.precision(.fractionLength(1))) km away")
-                        Text("Observed \(relativeDate(observation.observedAt, to: status.now))")
+                        Text("\(observation.source == "open_meteo" ? "Forecast valid" : "Observed") \(relativeDate(observation.observedAt, to: status.now))")
                             .help(observation.observedAt.formatted(date: .abbreviated, time: .shortened))
                         if let concentration = observation.pm2524hConcentration {
                             Text("PM2.5 \(concentration.value, format: .number.precision(.fractionLength(1))) µg/m³ · 24-hour mean")

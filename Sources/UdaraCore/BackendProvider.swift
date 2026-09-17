@@ -20,8 +20,9 @@ struct StationObservation: Codable, Sendable {
         case pm25Index = "pm25_index", pm2524hConcentration = "pm25_24h_concentration"
         case observedAt = "observed_at", fetchedAt = "fetched_at"
     }
-    var sourceLabel: String { source == "doe" ? "DOE Malaysia" : "AQICN" }
+    var sourceLabel: String { source == "doe" ? "DOE Malaysia" : "Open-Meteo" }
     func reading(at now: Date) -> AQIReading? {
+        if source == "open_meteo", floor(now.timeIntervalSince1970 / 3600) != floor(observedAt.timeIntervalSince1970 / 3600) { return nil }
         guard now.timeIntervalSince(observedAt) <= 7200, observedAt.timeIntervalSince(now) <= 300,
               let pm25Index else { return nil }
         return AQIReading(pm25Index.value, scale: pm25Index.scale)
@@ -65,8 +66,8 @@ struct BackendProvider: AirQualityProvider {
         }
         let envelope = try decoder.decode(Envelope.self, from: data)
         let o = envelope.observation
-        let scale = o.source == "doe" ? "MY_API" : "AQICN_AQI"
-        guard envelope.schema_version == 1, ["doe", "aqicn"].contains(o.source),
+        let scale = o.source == "doe" ? "MY_API" : "US_AQI"
+        guard envelope.schema_version == 1, ["doe", "open_meteo"].contains(o.source),
               o.index.scale == scale, o.index.metric == "overall", AQIReading(o.index.value) != nil,
               o.pm25Index == nil || (o.pm25Index?.scale == scale && o.pm25Index?.metric == "pm25" && AQIReading(o.pm25Index?.value) != nil),
               (-90...90).contains(o.station.latitude), (-180...180).contains(o.station.longitude),

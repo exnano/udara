@@ -44,7 +44,7 @@ enum AQICategory: String, Codable, CaseIterable, Sendable {
 struct AQIReading: Equatable, Sendable {
     let value: Int
     var scale: String = "US_AQI"
-    var scaleLabel: String { scale == "MY_API" ? "Malaysian API" : scale == "AQICN_AQI" ? "AQICN AQI" : "Estimated US AQI" }
+    var scaleLabel: String { scale == "MY_API" ? "Malaysian API" : "Estimated US AQI" }
     init?(_ raw: Double?, scale: String = "US_AQI") {
         self.scale = scale
         guard let raw, raw.isFinite, raw >= 0, raw.rounded() < Double(Int.max) else { return nil }

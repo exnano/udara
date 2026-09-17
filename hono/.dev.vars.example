@@ -1,2 +1,1 @@
-# AQICN uses the WAQI API token. Server-side only.
-WAQI_TOKEN=""
+# No provider credentials required for DOE / Open-Meteo.

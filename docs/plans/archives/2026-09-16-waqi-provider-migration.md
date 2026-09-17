@@ -1,3 +1,5 @@
+> Closed as cancelled/superseded on 17 September 2026: user selected DOE plus Open-Meteo, explicitly removing AQICN. The proposed Keychain/token migration below is not to be implemented.
+
 # WAQI provider migration — assessment and proposed implementation
 
 ## Verified on 16 September 2026

@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { decodeAQICN, fetchAQICN } from './providers/aqicn';
+import { decodeOpenMeteo, fetchOpenMeteo } from './providers/open-meteo';
 import { decodeDOE, fetchDOE } from './providers/doe';
 import { SourceError, type Bindings, type Fetcher, type Location } from './types';
 import { positiveSetting, record } from './validation';
@@ -30,7 +30,6 @@ export function createApp(dependencies: Dependencies = {}) {
     const location: Location = { latitude: Number(lat), longitude: Number(lon), country };
     const now = clock();
     const maxAge = positiveSetting(c.env.MAX_OBSERVATION_AGE_SECONDS, 7200, 86400);
-    const aqicnRadius = positiveSetting(c.env.AQICN_RADIUS_KM, 50, 200);
     const doeRadius = positiveSetting(c.env.DOE_RADIUS_KM, 50, 200);
     const attempts: { source: string; reason: string }[] = [];
     const result = (observation: ReturnType<typeof decodeDOE>) => c.json({
@@ -81,11 +80,11 @@ export function createApp(dependencies: Dependencies = {}) {
     c.header('X-Udara-Cache', 'BYPASS');
     c.res.headers.delete('X-Udara-Cache-Age');
     try {
-      const observation = decodeAQICN(await fetchAQICN(fetcher, c.env.WAQI_TOKEN, location), location, now, aqicnRadius, maxAge);
+      const observation = decodeOpenMeteo(await fetchOpenMeteo(fetcher, location), location, clock());
       if (metric === 'pm25' && !observation.pm25_index) throw new SourceError('no_usable_station');
       return result(observation);
     } catch (error) {
-      attempts.push({ source: 'aqicn', reason: error instanceof SourceError ? error.reason : 'unavailable' });
+      attempts.push({ source: 'open_meteo', reason: error instanceof SourceError ? error.reason : 'unavailable' });
     }
     c.header('Retry-After', '300');
     return c.json({ error: { code: 'no_usable_observation', attempts } }, 503);

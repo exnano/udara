@@ -1,12 +1,9 @@
-# Udara 1.5.0
+# Udara 1.5.1
 
-- Prefer DOE station observations in Malaysia, with AQICN for other countries and fallback coverage.
-- Show PM2.5 station indices, their source scale, observation age, station distance and attribution.
-- Use the deployed Udara API with a five-minute DOE dataset cache.
-- Keep the current-location row inside the scrolling list and remove download-age text.
-- Refresh About, privacy explanations and source links.
-- Build and notarize locally; GitHub Actions workflows are removed.
+DOE remains the primary source for Malaysia. Open-Meteo replaces AQICN elsewhere and when DOE has no usable observation.
 
-Download the universal DMG and drag Udara into Applications, or run `brew update && brew upgrade --cask udara` using the exnano/tap tap. Requires macOS 26 or later.
+Model values are labelled Estimated US AQI and Forecast valid, with Open-Meteo/CAMS attribution. DOE keeps Malaysian API labels. Estimates expire at the next UTC hour instead of carrying forward old values. Location permission descriptions now name the current services. No AQICN credentials are used.
 
-Known limitations: the security evaluation remains open, including API quota-abuse protection, location-permission wording, response-size limits and operational monitoring. See `docs/security/2026-09-17-security-posture.md`. The complete macOS/CPU and clean-machine offline acceptance matrix has not been verified.
+Requires macOS 26+. Download the universal notarized DMG or use `brew update && brew upgrade --cask udara`.
+
+The security report remains active for endpoint abuse controls, response limits and monitoring. Clean-Mac/offline and complete OS/CPU runtime acceptance remain unverified.

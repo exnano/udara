@@ -52,24 +52,24 @@ describe('provider routing', () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
     expect(String(fetcher.mock.calls[0][0])).toContain('eqms.doe.gov.my');
   });
-  it.each([429, 503])('returns unavailable on upstream %s without fallback', async status => {
+  it.each([429, 503])('returns unavailable on upstream %s with failed fallback', async status => {
     const fetcher = vi.fn<Fetcher>(async () => new Response('', { status }));
     const res = await createApp({ fetcher, now: () => now }).request(path, {}, env);
     expect(res.status).toBe(503);
-    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher).toHaveBeenCalledTimes(2);
     expect(res.headers.get('Cache-Control')).toBe('no-store');
   });
-  it('reports missing AQICN configuration outside Malaysia without calling DOE', async () => {
+  it('fails safely outside Malaysia if Open-Meteo is unavailable', async () => {
     const fetcher = vi.fn<Fetcher>();
     const res = await createApp({ fetcher }).request(path.replace('country=MY', 'country=SG'), {}, env);
     expect(res.status).toBe(503);
-    expect(fetcher).not.toHaveBeenCalled();
+    expect(fetcher).toHaveBeenCalledTimes(1);
   });
   it.each([{ SI_PM25: null }, { DATETIME: 0 }])('does not substitute an unusable PM2.5 observation', async override => {
     const fetcher = vi.fn<Fetcher>(async () => Response.json(doe(override)));
     const res = await createApp({ fetcher, now: () => now }).request(path + '&metric=pm25', {}, env);
     expect(res.status).toBe(503);
-    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(fetcher).toHaveBeenCalledTimes(2);
   });
   it('sanitizes upstream errors', async () => {
     const fetcher = vi.fn<Fetcher>(async () => { throw new Error('private upstream details'); });
@@ -102,28 +102,28 @@ describe('DOE cache', () => {
 });
 
 
-describe('AQICN fallback', () => {
-  const payload = { status: 'ok', data: { idx: 1, aqi: 120, city: { name: 'Test', geo: [3.10475, 101.556192] },
-    time: { iso: '2026-09-17T06:00:00+08:00' }, iaqi: { pm25: { v: 110 } },
-    attributions: [{ name: 'EPA', url: 'https://example.com' }] } };
-  it('uses AQICN directly outside Malaysia, without caching it', async () => {
+describe('Open-Meteo fallback', () => {
+  const payload = { latitude: 3.1, longitude: 101.5, hourly: { time: [Math.floor(now / 3600_000) * 3600], us_aqi: [160], us_aqi_pm2_5: [120] } };
+  it('uses model PM2.5 outside Malaysia', async () => {
     const fetcher = vi.fn<Fetcher>(async () => Response.json(payload));
-    const cache = { match: vi.fn(), put: vi.fn() };
-    const res = await createApp({ fetcher, now: () => now, cache: cache as unknown as Cache }).request(path.replace('MY', 'SG'), {}, { WAQI_TOKEN: 'test' });
+    const res = await createApp({ fetcher, now: () => now }).request(path.replace('MY', 'SG'), {}, env);
     expect(res.status).toBe(200);
-    const data = await res.json<{ observation: { source: string; pm25_24h_concentration: unknown } }>();
-    expect(data.observation.source).toBe('aqicn');
-    expect(data.observation.pm25_24h_concentration).toBeNull();
-    expect(String(fetcher.mock.calls[0][0])).toContain('api.waqi.info');
-    expect(cache.match).not.toHaveBeenCalled();
-    expect(cache.put).not.toHaveBeenCalled();
+    expect((await res.json<any>()).observation.pm25_index).toEqual({value:120,scale:'US_AQI',metric:'pm25'});
+    expect(String(fetcher.mock.calls[0][0])).toContain('air-quality-api.open-meteo.com');
   });
   it('falls back when DOE fails', async () => {
-    const fetcher = vi.fn<Fetcher>().mockResolvedValueOnce(new Response('', { status: 503 })).mockResolvedValueOnce(Response.json(payload));
-    const res = await createApp({ fetcher, now: () => now }).request(path, {}, { WAQI_TOKEN: 'test' });
+    const fetcher = vi.fn<Fetcher>().mockResolvedValueOnce(new Response('', {status:503})).mockResolvedValueOnce(Response.json(payload));
+    const res = await createApp({fetcher, now: () => now}).request(path, {}, env);
     expect(res.status).toBe(200);
-    expect(fetcher).toHaveBeenCalledTimes(2);
-    expect((await res.json<{ observation: { source: string } }>()).observation.source).toBe('aqicn');
+    expect((await res.json<any>()).observation.source).toBe('open_meteo');
+  });
+  it.each([null, -1])('rejects unusable PM2.5 %s', async value => {
+    const fetcher = vi.fn<Fetcher>(async () => Response.json({...payload,hourly:{...payload.hourly,us_aqi_pm2_5:[value]}}));
+    expect((await createApp({fetcher,now:()=>now}).request(path.replace('MY','SG'),{},env)).status).toBe(503);
+  });
+  it('never reuses the previous hour estimate', async () => {
+    const fetcher = vi.fn<Fetcher>(async () => Response.json(payload));
+    expect((await createApp({fetcher,now:()=>now+3600_000}).request(path.replace('MY','SG'),{},env)).status).toBe(503);
   });
 });
 
@@ -138,7 +138,7 @@ describe('edge cache performance', () => {
     expect(hit.headers.get('Server-Timing')).toContain('app;dur=');
     const miss = await app.request(path.replace('lat=3.10475', 'lat=6'), {}, env);
     expect(miss.status).toBe(503);
-    expect(fetcher).not.toHaveBeenCalled();
+    expect(fetcher).toHaveBeenCalledTimes(1);
   });
   it('refreshes expired data and survives a failed cache write', async () => {
     const cache = { match: vi.fn(async () => Response.json({ payload: doe(), fetched_at: new Date(now - 300_000).toISOString() })), put: vi.fn(async () => { throw new Error('cache unavailable'); }) };

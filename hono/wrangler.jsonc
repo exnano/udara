@@ -10,7 +10,6 @@
   "observability": { "enabled": false },
   "vars": {
     "DOE_RADIUS_KM": "50",
-    "AQICN_RADIUS_KM": "50",
     "MAX_OBSERVATION_AGE_SECONDS": "7200"
   }
 }

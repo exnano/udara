@@ -1,12 +1,12 @@
 # Plans
 
-## Active or deferred
+## Active acceptance
 
-- [macOS menu bar app](2026-09-16-udara-menubar-app.md): core app has shipped, but runtime-matrix, clean-machine/offline distribution acceptance and real location-permission verification remain unchecked. Retained here until those acceptance items are resolved; some publication checklist items need reconciliation with the verification record.
-- [WAQI migration assessment](2026-09-16-waqi-provider-migration.md): deferred direct-integration/Keychain proposal, superseded in part by the DOE-first backend. Not marked completed; its historical token failure is superseded by successful backend verification.
+- [macOS menu bar app](2026-09-16-udara-menubar-app.md): implementation released; remaining hardware, clean-machine/offline, permission and isolated uninstall/zap checks require external/manual evidence.
 
-## Archived implementation
+## Archives
 
-- [DOE-first provider migration](archives/2026-09-17-doe-first-provider.md): backend and Swift integration implemented, with the production endpoint deployed and verified on 17 September 2026. App release and security remediation remain outstanding.
+- [DOE-first implementation](archives/2026-09-17-doe-first-provider.md): implemented. Its AQICN fallback decision is superseded by DOE/Open-Meteo in 1.5.1.
+- [WAQI proposal](archives/2026-09-16-waqi-provider-migration.md): cancelled by user decision, not implemented as a direct Keychain integration.
 
-See [verification evidence](../VERIFICATION.md) and [security follow-ups](../security/2026-09-17-security-posture.md) for current delivery limits.
+See [verification](../VERIFICATION.md) and the [active security report](../security/2026-09-17-security-posture.md).

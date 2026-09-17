@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.5.1 (8) — 2026-09-17
+
+- Replace AQICN with Open-Meteo fallback while retaining DOE priority in Malaysia.
+- Label model readings as Estimated US AQI and forecast validity, expiring at the UTC hour boundary.
+- Correct location permission disclosure and retire the cancelled WAQI migration plan.
+
 ## 1.5.0 (7) — 2026-09-17
 
 - Remove GitHub Actions builds; use local testing, notarization and manual release publication.

@@ -68,7 +68,7 @@ Update with `brew update && brew upgrade --cask udara`. Requires macOS 26 or lat
 
 ## Backend
 
-The [Hono backend](hono/README.md) provides DOE-first Malaysia observations with AQICN fallback for Cloudflare Workers. It has independent dependencies, tests, local secrets and deployment configuration. The 1.5.0 development app connects to this backend. The published 1.4.0 app still uses Open-Meteo.
+The [Hono backend](hono/README.md) provides DOE-first Malaysia observations with Open-Meteo fallback for Cloudflare Workers. It has independent dependencies, tests, local secrets and deployment configuration. The 1.5.0 development app connects to this backend. The published 1.4.0 app still uses Open-Meteo.
 
 ### App API configuration
 
@@ -81,8 +81,8 @@ UDARA_API_URL_PRODUCTION=https://udara.exnano.io
 
 Keep the backend running with `cd hono && bun run dev`. From the repository root, run `./scripts/run.sh` to build and launch the real Debug app (no preview fixtures). Debug uses a separate bundle identifier from the installed production app, so saved cities may differ.
 
-Build/test/release scripts generate ignored `Config/API.local.xcconfig` containing only URLs. For direct Xcode builds, run `python3 scripts/configure-api.py Debug` after editing `.env`, then build the shared Udara scheme. Xcode does not load `.env` at runtime; rebuild after changing URLs. Development permits HTTP only on localhost/loopback. Release requires `UDARA_API_URL_PRODUCTION` set to a deployed HTTPS endpoint; it never falls back to the development URL. The production backend is deployed at https://udara.exnano.io, with a five-minute DOE dataset cache at each Cloudflare edge location. AQICN responses remain uncached.
+Build/test/release scripts generate ignored `Config/API.local.xcconfig` containing only URLs. For direct Xcode builds, run `python3 scripts/configure-api.py Debug` after editing `.env`, then build the shared Udara scheme. Xcode does not load `.env` at runtime; rebuild after changing URLs. Development permits HTTP only on localhost/loopback. Release requires `UDARA_API_URL_PRODUCTION` set to a deployed HTTPS endpoint; it never falls back to the development URL. The production backend is deployed at https://udara.exnano.io, with a five-minute DOE dataset cache at each Cloudflare edge location. Open-Meteo responses remain uncached.
 
-City search continues to use Open-Meteo geocoding. Existing city names resolve country codes where possible; unidentified legacy cities should be removed and added again. Backend requests include `metric=pm25` so missing DOE PM2.5 triggers AQICN fallback. Observations stay in memory, expire two hours after observation, and are checked every ten minutes (plus scheduling jitter). Saved cities/preferences remain on disk. Station data is never used as a forecast or relabeled across index systems.
+City search continues to use Open-Meteo geocoding. Existing city names resolve country codes where possible; unidentified legacy cities should be removed and added again. Backend requests include `metric=pm25` so missing DOE PM2.5 triggers Open-Meteo fallback. Observations stay in memory, expire two hours after observation, and are checked every ten minutes (plus scheduling jitter). Saved cities/preferences remain on disk. Station data is never used as a forecast or relabeled across index systems.
 
-The backend uses DOE in Malaysia with AQICN fallback, and AQICN directly outside Malaysia. The GPS row scrolls with saved locations; rows display observation age, not download age.
+The backend uses DOE in Malaysia with Open-Meteo fallback, and Open-Meteo directly outside Malaysia. The GPS row scrolls with saved locations; rows display observation age, not download age.

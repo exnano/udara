@@ -87,3 +87,7 @@ Recommended fix: commit the reviewed backend and lockfile after remediation, rec
 ## Release review — 17 September 2026
 
 Reviewed again for the 1.5.0 publication request. SEC-01 through SEC-04 remain open; SEC-05 is only partially addressed by committing the backend with the release (the deployed revision and clean-source deployment preflight still need reconciliation). This report remains active and must not be archived as completed. Publishing a build does not close these findings.
+
+## DOE/Open-Meteo correction — 1.5.1
+
+AQICN integration and shared-token usage are removed. SEC-01's specific WAQI quota exposure no longer applies; generic public endpoint/provider quota abuse remains open because no Worker rate limiter is configured. SEC-02 permission strings now name Apple, Udara, DOE and Open-Meteo; fresh real permission-dialog acceptance is still pending. SEC-03/04 and deployment preflight follow-ups remain open. Do not archive this report as fully remediated.

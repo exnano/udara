@@ -120,14 +120,14 @@ struct PM25PayloadTests {
 struct BackendTests {
     let now = Date(timeIntervalSince1970: 1_789_606_800) // 2026-09-17T00:00Z
     func payload(source: String = "doe", pm25: Bool = true) throws -> Data {
-        let scale = source == "doe" ? "MY_API" : "AQICN_AQI"
+        let scale = source == "doe" ? "MY_API" : "US_AQI"
         let formatter = ISO8601DateFormatter()
         return try JSONSerialization.data(withJSONObject: ["schema_version": 1, "observation": [
             "source": source, "index": ["value": 140, "scale": scale, "metric": "overall"],
             "pm25_index": pm25 ? ["value": 120, "scale": scale, "metric": "pm25"] : NSNull(),
             "pm25_24h_concentration": NSNull(),
             "station": ["id": "test", "name": "Test station", "latitude": 3.1, "longitude": 101.5, "distance_km": 3.2],
-            "observed_at": formatter.string(from: now.addingTimeInterval(-1800)),
+            "observed_at": formatter.string(from: source == "doe" ? now.addingTimeInterval(-1800) : now),
             "fetched_at": formatter.string(from: now),
             "attribution": [["name": "DOE Malaysia", "url": "https://eqms.doe.gov.my/"]]
         ]])
@@ -145,7 +145,13 @@ struct BackendTests {
     }
     @Test func missingPM25DoesNotUseOverallAndScalesStayDistinct() throws {
         #expect(try BackendProvider.decode(payload(pm25: false), now: now).reading(at: now) == nil)
-        #expect(try BackendProvider.decode(payload(source: "aqicn"), now: now).reading(at: now)?.category == .sensitive)
+        #expect(try BackendProvider.decode(payload(source: "open_meteo"), now: now).reading(at: now)?.category == .sensitive)
+    }
+    @Test func estimateExpiresAtHourBoundaryAndRejectsAQICN() throws {
+        let result = try BackendProvider.decode(payload(source: "open_meteo"), now: now)
+        #expect(result.reading(at: now)?.scaleLabel == "Estimated US AQI")
+        #expect(result.reading(at: now.addingTimeInterval(3600)) == nil)
+        #expect(throws: (any Error).self) { try BackendProvider.decode(payload(source: "aqicn"), now: now) }
     }
     @Test func urlConfiguration() {
         #expect(BackendProvider.configuredURL("http://localhost:8787", development: true) != nil)

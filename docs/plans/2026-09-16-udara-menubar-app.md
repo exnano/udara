@@ -66,9 +66,11 @@ Acceptance cases: category boundaries and rounding, invalid data, sorting/ties, 
 - [x] Local build/test/sign/notarize pipeline with manual GitHub and Homebrew publication. GitHub Actions workflows removed by user decision on 17 September 2026.
 - [x] Draft GitHub release helper, reviewed notes file and immutable versioned assets.
 - [x] Homebrew cask generator requiring a public stable release and matching checksum.
-- [ ] Supply actual Developer ID credentials, production bundle ID, GitHub repository and tap ownership.
-- [ ] Run signed/notarized release and clean-machine/quarantined/offline acceptance.
-- [ ] Publish GitHub release, then publish/test owned tap install/upgrade/uninstall/zap.
+- [x] Supply actual Developer ID credentials, production bundle ID, GitHub repository and tap ownership.
+- [x] Run signed/notarized releases (1.4.0 and 1.5.0).
+- [ ] Complete clean-machine/quarantined/offline acceptance.
+- [x] Publish GitHub release and owned tap; verify installation and 1.4.0 → 1.5.0 upgrade.
+- [ ] Verify uninstall/zap in an isolated test account without deleting user data.
 
 Manual installation: download Udara-<version>-universal.dmg, drag app into Applications. Homebrew uses that same artifact. No automatic updater; use Homebrew upgrades or replacement DMGs.
 
@@ -109,3 +111,7 @@ Reference: [Open-Meteo AQ](https://open-meteo.com/en/docs/air-quality-api), [geo
 - [x] Add a metric marker to each cache payload. Missing/other markers cannot supply a reading; clear incompatible forecast schedules while retaining saved preferences and retry limits.
 - [x] Keep hourly downloads, existing category boundaries and the permanent current-location row.
 - [x] Retain the independent local WAQI assessment work; no WAQI migration or token bundling.
+
+## Execution review — 17 September 2026
+
+Implementation and public distribution are complete. Remaining unchecked acceptance needs macOS 26/Intel hardware, a clean/offline Mac or isolated user account, and an interactive real location permission grant. These cannot be marked passed by build or fixture tests on this development Mac. Keep this plan active until that evidence is available. DOE/Open-Meteo supersedes the original forecast-only architecture.
